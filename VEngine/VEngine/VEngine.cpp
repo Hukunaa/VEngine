@@ -13,12 +13,13 @@ class HelloTriangleApplication
 {
 public:
 
-    Context context;
+    VContext context;
 
-    void run() {
+    void run() 
+    {
         initVulkan();
         mainLoop();
-        cleanup();
+        context.CleanUp();
     }
 
 private:
@@ -31,6 +32,8 @@ private:
         context.CreateWinow(1280, 720, "VEngine");
 
         context.SetupInstance();
+        context.SelectGPU();
+        context.CreateLogicalDevice();
         context.SetupDebugMessenger();
     }
 
@@ -40,13 +43,6 @@ private:
         {
             glfwPollEvents();
         }
-    }
-
-    void cleanup() 
-    {
-        vkDestroyInstance(context.GetInstance(), nullptr);
-        glfwDestroyWindow(context.GetWindow());
-        glfwTerminate();
     }
 };
 
