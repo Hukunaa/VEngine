@@ -1,5 +1,3 @@
-#include <vulkan/vulkan.h>
-
 #include <iostream>
 #include <stdexcept>
 #include <functional>
@@ -32,9 +30,10 @@ private:
         context.CreateWinow(1280, 720, "VEngine");
 
         context.SetupInstance();
+        context.SetupDebugMessenger();
         context.SelectGPU();
         context.CreateLogicalDevice();
-        context.SetupDebugMessenger();
+        context.createSwapChain();
     }
 
     void mainLoop() 
