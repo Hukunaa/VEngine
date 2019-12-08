@@ -6,7 +6,8 @@
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
-
+#define WIDTH 800
+#define HEIGHT 800
 class HelloTriangleApplication 
 {
 public:
@@ -27,13 +28,20 @@ private:
         glfwInit();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-        context.CreateWinow(1280, 720, "VEngine");
+        context.CreateWinow(WIDTH, HEIGHT, "VEngine");
 
         context.SetupInstance();
         context.SetupDebugMessenger();
         context.SelectGPU();
         context.CreateLogicalDevice();
         context.createSwapChain();
+        context.createImageViews();
+        context.CreateRenderPass();
+        context.CreateGraphicPipeLine();
+        context.CreateFrameBuffers();
+        context.CreateCommandPool();
+        context.CreateCommandBuffers();
+        context.CreateSemaphores();
     }
 
     void mainLoop() 
@@ -41,6 +49,7 @@ private:
         while (!glfwWindowShouldClose(context.GetWindow())) 
         {
             glfwPollEvents();
+            context.DrawFrame();
         }
     }
 };

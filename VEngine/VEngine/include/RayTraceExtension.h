@@ -13,9 +13,11 @@ struct GeometryInstance
     VkBuffer vertexBuffer;
     uint32_t vertexCount;
     VkDeviceSize vertexOffset;
+
     VkBuffer indexBuffer;
     uint32_t indexCount;
     VkDeviceSize indexOffset;
+
     glm::mat4x4 transform;
 };
 
@@ -38,7 +40,7 @@ public:
     ~RayTraceExtension() = default;
 
     void initRayTracing(int maxRecursionDepth);
-    void createGeometryInstances();
+    void createGeometryInstances(VkBuffer m_vertexBuffer, uint32_t m_nbVertices, VkBuffer m_indexBuffer, uint32_t m_nbIndices);
 
     AccelerationStructure createBottomLevelAS(VkCommandBuffer commandBuffer, std::vector<GeometryInstance> vVertexBuffers);
     void createTopLevelAS(VkCommandBuffer commandBuffer, const std::vector<std::pair<VkAccelerationStructureNV, glm::mat4x4>>& instances, VkBool32 updateOnly);

@@ -45,6 +45,12 @@ public:
     void createSwapChain();
     void createImageViews();
     void CreateGraphicPipeLine();
+    void CreateRenderPass();
+    void CreateFrameBuffers();
+    void CreateCommandPool();
+    void CreateCommandBuffers();
+    void CreateSemaphores();
+    void DrawFrame();
 
     void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
     void SetupDebugMessenger();
@@ -54,7 +60,6 @@ public:
     QueueFamilyIndices FindQueueFamilies(VkPhysicalDevice device);
     SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
     VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger);
-    VkResult& GetResult() { return result; }
     VkInstance& GetInstance() { return instance; }
     VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
     VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
@@ -69,7 +74,7 @@ public:
 
     GLFWwindow* GetWindow() { return window; }
 
-    static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType,
+    static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType,
                                                   const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
 
     static std::vector<char> readFile(const std::string& filename)
@@ -101,19 +106,35 @@ public:
     GLFWwindow* window;
 
     VkInstance instance;
-    VkResult result;
     VkDebugUtilsMessengerEXT debugMessenger;
+    VkRenderPassBeginInfo renderPassInfo = {};
+
+
     VkDevice logicalDevice;
     VkPhysicalDevice SelectedGPU;
+
     VkQueue graphicsQueue;
     VkQueue presentQueue;
+
     VkSurfaceKHR surface;
+
     VkSwapchainKHR swapChain;
     VkFormat swapChainImageFormat;
     VkExtent2D swapChainExtent;
 
+    VkViewport viewport = {};
+    VkRenderPass renderPass;
+    VkPipelineLayout pipelineLayout;
+    VkPipeline graphicsPipeline;
+
+    VkCommandPool commandPool;
+    
     std::vector<VkImage> swapChainImages;
     std::vector<VkImageView> swapChainImageViews;
-
+    std::vector<VkFramebuffer> swapChainFramebuffers;
+    std::vector<VkCommandBuffer> commandBuffers;
     std::vector<VkPhysicalDevice> GPUs;
+
+    VkSemaphore imageAvailableSemaphore;
+    VkSemaphore renderFinishedSemaphore;
 };
