@@ -4,11 +4,34 @@
 
 #include <cstdint>
 #include <optional>
+#include <glm/glm.hpp>
 
 #include <fstream>
 #include <vector>
 #include <iostream>
 #include <map>
+
+struct StorageImage 
+{
+    VkDeviceMemory memory;
+    VkImage image;
+    VkImageView view;
+    VkFormat format;
+};
+
+struct UniformData
+{
+    glm::mat4 viewInverse;
+    glm::mat4 projInverse;
+};
+
+struct Vertex
+{
+    glm::vec3 pos;
+    glm::vec3 nrm;
+    glm::vec3 color;
+    glm::vec2 texCoord;
+};
 
 struct QueueFamilyIndices 
 {
@@ -64,6 +87,7 @@ public:
     VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
     VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
     VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+    VkCommandBuffer beginSingleTimeCommands();
 
     bool CheckValidationLayerSupport();
     bool IsDeviceSuitable(VkPhysicalDevice device);
@@ -101,7 +125,10 @@ public:
 public:
 
     std::vector<const char*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
-    const std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+    const std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, 
+        VK_NV_RAY_TRACING_EXTENSION_NAME, 
+        VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME,
+        VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME };
 
     GLFWwindow* window;
 
@@ -124,8 +151,8 @@ public:
 
     VkViewport viewport = {};
     VkRenderPass renderPass;
-    VkPipelineLayout pipelineLayout;
     VkPipeline graphicsPipeline;
+    VkPipelineLayout pipelineLayout;
 
     VkCommandPool commandPool;
     
@@ -137,4 +164,14 @@ public:
 
     VkSemaphore imageAvailableSemaphore;
     VkSemaphore renderFinishedSemaphore;
+
+    VkBuffer       m_vertexBuffer;
+    VkDeviceMemory m_vertexBufferMemory;
+
+
+    VkDescriptorSet descriptorSet;
+    VkDescriptorSetLayout descriptorSetLayout;
+    VkPhysicalDeviceRayTracingPropertiesNV rayTracingProperties{};
+
+
 };

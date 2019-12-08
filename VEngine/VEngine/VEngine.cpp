@@ -37,11 +37,17 @@ private:
         context.createSwapChain();
         context.createImageViews();
         context.CreateRenderPass();
-        context.CreateGraphicPipeLine();
-        context.CreateFrameBuffers();
+
+        //----------
+        //INSERT BACK HERE
+        //----------
         context.CreateCommandPool();
-        context.CreateCommandBuffers();
-        context.CreateSemaphores();
+
+        //RASTERIZER PART
+        //context.CreateGraphicPipeLine();
+        //context.CreateFrameBuffers();
+        //context.CreateCommandBuffers();
+        //context.CreateSemaphores();
     }
 
     void mainLoop() 

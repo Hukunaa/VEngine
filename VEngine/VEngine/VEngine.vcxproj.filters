@@ -21,9 +21,6 @@
     <ClCompile Include="src\Context.cpp">
       <Filter>Fichiers sources</Filter>
     </ClCompile>
-    <ClCompile Include="src\RayTraceExtension.cpp">
-      <Filter>Fichiers sources</Filter>
-    </ClCompile>
     <ClCompile Include="librairies\nv_helpers_vk\BottomLevelASGenerator.cpp">
       <Filter>Fichiers sources</Filter>
     </ClCompile>
@@ -48,9 +45,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\Context.h">
-      <Filter>Fichiers d%27en-tête</Filter>
-    </ClInclude>
-    <ClInclude Include="include\RayTraceExtension.h">
       <Filter>Fichiers d%27en-tête</Filter>
     </ClInclude>
     <ClInclude Include="librairies\nv_helpers_vk\BottomLevelASGenerator.h">

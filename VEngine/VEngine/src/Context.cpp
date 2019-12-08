@@ -290,6 +290,27 @@ VkExtent2D VContext::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabiliti
         return actualExtent;
     }
 }
+VkCommandBuffer VContext::beginSingleTimeCommands()
+{
+    {
+        VkCommandBufferAllocateInfo allocInfo = {};
+        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        allocInfo.commandPool = commandPool;
+        allocInfo.commandBufferCount = 1;
+
+        VkCommandBuffer commandBuffer;
+        vkAllocateCommandBuffers(logicalDevice, &allocInfo, &commandBuffer);
+
+        VkCommandBufferBeginInfo beginInfo = {};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+        vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+        return commandBuffer;
+    }
+}
 bool VContext::CheckValidationLayerSupport()
 {
     uint32_t layerCount;
@@ -354,6 +375,7 @@ std::vector<const char*> VContext::GetRequieredExtensions()
 
     std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
     std::cout << "Extensions Loaded: \n";
+
     for (const char* typo : extensions)
         std::cout << typo << "\n";
 
@@ -363,9 +385,6 @@ std::vector<const char*> VContext::GetRequieredExtensions()
     }
     
     //Extensions
-
-    /*extensions.push_back(VK_NV_RAY_TRACING_EXTENSION_NAME);
-    extensions.push_back(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);*/
 
     return extensions;
 }
