@@ -41,13 +41,13 @@ private:
         //----------
         //INSERT BACK HERE
         //----------
+        context.CreateGraphicPipeLine();
+        context.CreateFrameBuffers();
         context.CreateCommandPool();
-        //https://github.com/SaschaWillems/Vulkan/blob/master/examples/nv_ray_tracing_basic/nv_ray_tracing_basic.cpp#L125
+        context.CreateCommandBuffers();
+        context.CreateSemaphores();
+
         //RASTERIZER PART
-        //context.CreateGraphicPipeLine();
-        //context.CreateFrameBuffers();
-        //context.CreateCommandBuffers();
-        //context.CreateSemaphores();
     }
 
     void mainLoop() 

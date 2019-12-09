@@ -11,6 +11,26 @@
 #include <iostream>
 #include <map>
 
+struct Device
+{
+    VkPhysicalDevice physicalDevice;
+    /** @brief Logical device representation (application's view of the device) */
+    VkDevice logicalDevice;
+    /** @brief Properties of the physical device including limits that the application can check against */
+    VkPhysicalDeviceProperties properties;
+    /** @brief Features of the physical device that an application can use to check if a feature is supported */
+    VkPhysicalDeviceFeatures features;
+    /** @brief Features that have been enabled for use on the physical device */
+    VkPhysicalDeviceFeatures enabledFeatures;
+    /** @brief Memory types and heaps of the physical device */
+    VkPhysicalDeviceMemoryProperties memoryProperties;
+    /** @brief Queue family properties of the physical device */
+    std::vector<VkQueueFamilyProperties> queueFamilyProperties;
+    /** @brief KHR Surface of te device */
+    VkSurfaceKHR surface;
+    /** @brief List of extensions supported by the device */
+    std::vector<std::string> supportedExtensions;
+};
 struct StorageImage 
 {
     VkDeviceMemory memory;
@@ -77,6 +97,7 @@ public:
 
     void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
     void SetupDebugMessenger();
+    void createStorageImage();
     void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
     void CleanUp();
 
@@ -87,7 +108,9 @@ public:
     VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
     VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
     VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+    VkShaderModule createShaderModule(const std::vector<char>& code);
     VkCommandBuffer beginSingleTimeCommands();
+    //uint32_t getMemoryType(uint32_t typeBits, VkMemoryPropertyFlags properties, VkBool32* memTypeFound = nullptr);
 
     bool CheckValidationLayerSupport();
     bool IsDeviceSuitable(VkPhysicalDevice device);
@@ -96,54 +119,27 @@ public:
     std::vector<const char*> GetRequieredExtensions();
     std::vector<const char*>& GetValidationLayers() { return validationLayers; }
 
-    GLFWwindow* GetWindow() { return window; }
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType,
                                                   const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
+    static std::vector<char> readFile(const std::string& filename);
 
-    static std::vector<char> readFile(const std::string& filename)
-    {
-        std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
-        if (!file.is_open())
-        {
-            throw std::runtime_error("failed to open file!");
-        }
-
-        size_t fileSize = (size_t)file.tellg();
-        std::vector<char> buffer(fileSize);
-
-        file.seekg(0);
-        file.read(buffer.data(), fileSize);
-
-        file.close();
-
-        return buffer;
-    }
-
-    VkShaderModule createShaderModule(const std::vector<char>& code);
+    GLFWwindow* GetWindow() { return window; }
 public:
 
     std::vector<const char*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
-    const std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, 
-        VK_NV_RAY_TRACING_EXTENSION_NAME, 
-        VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME,
-        VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME };
+    const std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_NV_RAY_TRACING_EXTENSION_NAME,VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME };
 
     GLFWwindow* window;
 
     VkInstance instance;
     VkDebugUtilsMessengerEXT debugMessenger;
-    VkRenderPassBeginInfo renderPassInfo = {};
 
-
-    VkDevice logicalDevice;
-    VkPhysicalDevice SelectedGPU;
+    Device device;
 
     VkQueue graphicsQueue;
     VkQueue presentQueue;
-
-    VkSurfaceKHR surface;
 
     VkSwapchainKHR swapChain;
     VkFormat swapChainImageFormat;
@@ -160,18 +156,13 @@ public:
     std::vector<VkImageView> swapChainImageViews;
     std::vector<VkFramebuffer> swapChainFramebuffers;
     std::vector<VkCommandBuffer> commandBuffers;
-    std::vector<VkPhysicalDevice> GPUs;
 
     VkSemaphore imageAvailableSemaphore;
     VkSemaphore renderFinishedSemaphore;
 
-    VkBuffer       m_vertexBuffer;
-    VkDeviceMemory m_vertexBufferMemory;
-
-
-    VkDescriptorSet descriptorSet;
+    /*VkDescriptorSet descriptorSet;
     VkDescriptorSetLayout descriptorSetLayout;
-    VkPhysicalDeviceRayTracingPropertiesNV rayTracingProperties{};
+    VkPhysicalDeviceRayTracingPropertiesNV rayTracingProperties{};*/
 
 
 };
