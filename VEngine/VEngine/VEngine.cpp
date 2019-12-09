@@ -42,7 +42,7 @@ private:
         //INSERT BACK HERE
         //----------
         context.CreateCommandPool();
-
+        //https://github.com/SaschaWillems/Vulkan/blob/master/examples/nv_ray_tracing_basic/nv_ray_tracing_basic.cpp#L125
         //RASTERIZER PART
         //context.CreateGraphicPipeLine();
         //context.CreateFrameBuffers();
