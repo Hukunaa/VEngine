@@ -14,16 +14,29 @@ const bool enableValidationLayers = true;
 #pragma region Queues
 QueueFamilyIndices VContext::FindQueueFamilies(VkPhysicalDevice p_device)
 {
+    /**
+    A queue family just describes a set of queues with identical properties. 
+    The device supports three kinds of queues:
+
+    One kind can do graphics, compute, transfer, and sparse binding operations, 
+    Usually this is for asynchronously DMAing data between host and device memory on discrete GPUs,
+    so transfers can be done concurrently with independent graphics/compute operations.
+    */
+
     QueueFamilyIndices indices;
+
+    //Get QueueFamily size from the GPU
     uint32_t queueFamilyCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(p_device, &queueFamilyCount, nullptr);
 
+    //Get actual info of the GPU's QueueFamily
     device.queueFamilyProperties.resize(queueFamilyCount);
     vkGetPhysicalDeviceQueueFamilyProperties(p_device, &queueFamilyCount, device.queueFamilyProperties.data());
 
     int i = 0;
     for (const auto& queueFamily : device.queueFamilyProperties)
     {
+        //Finding support for image rendering (presentation)
         VkBool32 presentSupport = false;
         vkGetPhysicalDeviceSurfaceSupportKHR(p_device, i, device.surface, &presentSupport);
 
@@ -31,6 +44,8 @@ QueueFamilyIndices VContext::FindQueueFamilies(VkPhysicalDevice p_device)
         {
             indices.presentFamily = i;
         }
+        //GraphicFamily and Present Family might very likely be the same id, but for support compatibility purpose,
+        //we separate them into 2 queue Famlilies
 
         if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) 
             indices.graphicsFamily = i;
@@ -119,6 +134,7 @@ void VContext::SelectGPU()
         if (IsDeviceSuitable(GPUs[id]))
         {
             device.physicalDevice = GPUs[id];
+            vkGetPhysicalDeviceMemoryProperties(device.physicalDevice, &device.memoryProperties);
             break;
         }
         else
@@ -179,7 +195,7 @@ void VContext::SetupInstance()
         throw std::runtime_error("failed to create surface!");
 }
 
-void VContext::CreateQueues()
+void VContext::createQueues()
 {
     QueueFamilyIndices indices = FindQueueFamilies(device.physicalDevice);
 
@@ -197,7 +213,7 @@ void VContext::CreateQueues()
     }
 
 }
-void VContext::CreateLogicalDevice()
+void VContext::createLogicalDevice()
 {
     QueueFamilyIndices indices = FindQueueFamilies(device.physicalDevice);
 
@@ -323,13 +339,14 @@ VkCommandBuffer VContext::beginSingleTimeCommands()
         return commandBuffer;
     }
 }
-/*uint32_t VContext::getMemoryType(uint32_t typeBits, VkMemoryPropertyFlags properties, VkBool32* memTypeFound)
+
+uint32_t VContext::getMemoryType(uint32_t typeBits, VkMemoryPropertyFlags properties, VkBool32* memTypeFound)
 {
-   for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++)
+   for (uint32_t i = 0; i < device.memoryProperties.memoryTypeCount; i++)
     {
         if ((typeBits & 1) == 1)
         {
-            if ((memoryProperties.memoryTypes[i].propertyFlags & properties) == properties)
+            if ((device.memoryProperties.memoryTypes[i].propertyFlags & properties) == properties)
             {
                 if (memTypeFound)
                 {
@@ -350,7 +367,60 @@ VkCommandBuffer VContext::beginSingleTimeCommands()
     {
         throw std::runtime_error("Could not find a matching memory type");
     }
-}*/
+}
+
+VkCommandBuffer VContext::createCommandBuffer(VkCommandBufferLevel level, bool begin)
+{
+    VkCommandBuffer cmdBuffer;
+
+    VkCommandBufferAllocateInfo cmdBufAllocateInfo = Initializers::commandBufferAllocateInfo( commandPool, level, 1);
+
+    VkResult err = vkAllocateCommandBuffers(device.logicalDevice, &cmdBufAllocateInfo, &cmdBuffer);
+
+    if (err != VK_SUCCESS)
+        std::runtime_error("Could not Allocate Command Buffers!");
+
+    // If requested, also start the new command buffer
+    if (begin)
+    {
+        VkCommandBufferBeginInfo cmdBufInfo = Initializers::commandBufferBeginInfo();
+        VkResult err2 = vkBeginCommandBuffer(cmdBuffer, &cmdBufInfo);
+        if (err2 != VK_SUCCESS)
+            std::runtime_error("Could not begin Command Buffer!");
+
+    }
+
+    return cmdBuffer;
+}
+
+void VContext::flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue, bool free)
+{
+    if (commandBuffer == VK_NULL_HANDLE)
+    {
+        return;
+    }
+
+    VkResult err = vkEndCommandBuffer(commandBuffer);
+
+    if (err != VK_SUCCESS)
+        std::runtime_error("failed to end commandBuffer!");
+
+    VkSubmitInfo submitInfo = {};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    if(vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS)
+        std::runtime_error("failed to free Queue Submit");
+
+    if(vkQueueWaitIdle(queue) != VK_SUCCESS);
+        std::runtime_error("failed to execute vkQueueWaitIdle");
+
+    if (free)
+    {
+        vkFreeCommandBuffers(device.logicalDevice, commandPool, 1, &commandBuffer);
+    }
+}
 
 bool VContext::CheckValidationLayerSupport()
 {
@@ -389,19 +459,22 @@ void VContext::CleanUp()
         vkDestroyFramebuffer(device.logicalDevice, framebuffer, nullptr);
     }
 
+    vkDestroyPipeline(device.logicalDevice, graphicsPipeline, nullptr);
+    vkDestroyPipelineLayout(device.logicalDevice, pipelineLayout, nullptr);
+    vkDestroyRenderPass(device.logicalDevice, renderPass, nullptr);
+
     for (auto imageView : swapChainImageViews) 
     {
         vkDestroyImageView(device.logicalDevice, imageView, nullptr);
     }
-    vkDestroyPipeline(device.logicalDevice, graphicsPipeline, nullptr);
-    vkDestroyPipelineLayout(device.logicalDevice, pipelineLayout, nullptr);
-    vkDestroyRenderPass(device.logicalDevice, renderPass, nullptr);
+
     vkDestroySwapchainKHR(device.logicalDevice, swapChain, nullptr);
+    vkDestroyDevice(device.logicalDevice, nullptr);
+
     vkDestroySurfaceKHR(GetInstance(), device.surface , nullptr);
     vkDestroyInstance(GetInstance(), nullptr);
     vkDestroySemaphore(device.logicalDevice, renderFinishedSemaphore, nullptr);
     vkDestroySemaphore(device.logicalDevice, imageAvailableSemaphore, nullptr);
-    vkDestroyDevice(device.logicalDevice, nullptr);
 
     glfwDestroyWindow(GetWindow());
     glfwTerminate();
@@ -497,12 +570,13 @@ void VContext::SetupDebugMessenger()
     }
 }
 
-void VContext::createStorageImage()
+
+// Set up a storage image that the ray generation shader will be writing to
+void VContext::createRayimage()
 {
-    /*StorageImage storageImage;
-    VkImageCreateInfo image = {};
+    VkImageCreateInfo image = Initializers::imageCreateInfo();
     image.imageType = VK_IMAGE_TYPE_2D;
-    image.format = storageImage.format;
+    image.format = swapChainImageFormat;
     image.extent.width = WIDTH;
     image.extent.height = HEIGHT;
     image.extent.depth = 1;
@@ -512,20 +586,26 @@ void VContext::createStorageImage()
     image.tiling = VK_IMAGE_TILING_OPTIMAL;
     image.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
     image.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    VkResult err = vkCreateImage(device.logicalDevice, &image, nullptr, &storageImage.image);
 
-    VkResult err = vkCreateImage(device.logicalDevice, &image, nullptr, &storageImage.image);*/
+    VkMemoryRequirements memReqs;
+    vkGetImageMemoryRequirements(device.logicalDevice, storageImage.image, &memReqs);
 
-    /*VkMemoryRequirements memReqs;
-    vkGetImageMemoryRequirements(logicalDevice, storageImage.image, &memReqs);
-    VkMemoryAllocateInfo memoryAllocateInfo = {};
+    VkMemoryAllocateInfo memoryAllocateInfo = Initializers::memoryAllocateInfo();
     memoryAllocateInfo.allocationSize = memReqs.size;
-    memoryAllocateInfo.memoryTypeIndex = vulkanDevice->getMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    VK_CHECK_RESULT(vkAllocateMemory(logicalDevice, &memoryAllocateInfo, nullptr, &storageImage.memory));
-    VK_CHECK_RESULT(vkBindImageMemory(logicalDevice, storageImage.image, storageImage.memory, 0));
+    memoryAllocateInfo.memoryTypeIndex = getMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    VkImageViewCreateInfo colorImageView = {};
+    VkResult err1 = vkAllocateMemory(device.logicalDevice, &memoryAllocateInfo, nullptr, &storageImage.memory);
+    if (err1 != VK_SUCCESS)
+        std::runtime_error("could not Allocate memory!");
+
+    VkResult err2(vkBindImageMemory(device.logicalDevice, storageImage.image, storageImage.memory, 0));
+    if (err2 != VK_SUCCESS)
+        std::runtime_error("could not Bind image memory!");
+
+    VkImageViewCreateInfo colorImageView = Initializers::imageViewCreateInfo();
     colorImageView.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    colorImageView.format = storageImage.format;
+    colorImageView.format = swapChainImageFormat;
     colorImageView.subresourceRange = {};
     colorImageView.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     colorImageView.subresourceRange.baseMipLevel = 0;
@@ -533,16 +613,17 @@ void VContext::createStorageImage()
     colorImageView.subresourceRange.baseArrayLayer = 0;
     colorImageView.subresourceRange.layerCount = 1;
     colorImageView.image = storageImage.image;
-    VK_CHECK_RESULT(vkCreateImageView(device, &colorImageView, nullptr, &storageImage.view));
 
-    VkCommandBuffer cmdBuffer = vulkanDevice->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
-    vks::tools::setImageLayout(cmdBuffer, storageImage.image,
+    VkResult err3 = vkCreateImageView(device.logicalDevice, &colorImageView, nullptr, &storageImage.view);
+    if (err3 != VK_SUCCESS)
+        std::runtime_error("could not Create image View!");
+
+    VkCommandBuffer cmdBuffer = createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+    Tools::setImageLayout(cmdBuffer, storageImage.image,
         VK_IMAGE_LAYOUT_UNDEFINED,
         VK_IMAGE_LAYOUT_GENERAL,
-        { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
-    vulkanDevice->flushCommandBuffer(cmdBuffer, queue);*/
-
-
+        { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }, 0,0);
+    flushCommandBuffer(cmdBuffer, presentQueue, false);
 }
 
 void VContext::DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) 
@@ -555,42 +636,70 @@ void VContext::DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMe
 
 void VContext::createSwapChain()
 {
+    //The swap chain is essentially a queue of images that are waiting to be presented to the screen. 
+    //Our application will acquire such an image to draw to it, and then return it to the queue.
+
     SwapChainSupportDetails swapChainSupport = querySwapChainSupport(device.physicalDevice);
 
     VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
+
+    //Kind of VSYNC mode: Immediate == OFF, Fifo == ON
     VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
+
     VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities);
 
-    uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
-    if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount) {
-        imageCount = swapChainSupport.capabilities.maxImageCount;
+    //To prevent us to wait on the driver to complete internal operations before we can acquire another image, we add + 1 as a margin
+    device.swapChainImageCount = swapChainSupport.capabilities.minImageCount + 1;
+
+    //We should also make sure to not exceed the maximum number of images
+    if (swapChainSupport.capabilities.maxImageCount > 0 && device.swapChainImageCount > swapChainSupport.capabilities.maxImageCount) {
+        device.swapChainImageCount = swapChainSupport.capabilities.maxImageCount;
     }
 
     VkSwapchainCreateInfoKHR createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+
+    //Surface is a kind of platform like Windows or Linux
     createInfo.surface = device.surface;
 
-    createInfo.minImageCount = imageCount;
+    createInfo.minImageCount = device.swapChainImageCount;
+
+    //Colors and Color format
     createInfo.imageFormat = surfaceFormat.format;
     createInfo.imageColorSpace = surfaceFormat.colorSpace;
+
     createInfo.imageExtent = extent;
     createInfo.imageArrayLayers = 1;
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
+    //get QueueFamilies from the FindQueueFamilies (checking GPU queue families)
     QueueFamilyIndices indices = FindQueueFamilies(device.physicalDevice);
     uint32_t queueFamilyIndices[] = { indices.graphicsFamily.value(), indices.presentFamily.value() };
 
-    if (indices.graphicsFamily != indices.presentFamily) {
+    /*
+    imageSharingMode:
+    Buffer and image objects are created with a sharing mode controlling how they can be accessed from queues. 
+    The supported sharing modes are:
+
+    VK_SHARING_MODE_EXCLUSIVE = 0,
+    VK_SHARING_MODE_CONCURRENT = 1,
+    
+    */
+    if (indices.graphicsFamily != indices.presentFamily) 
+    {
         createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
         createInfo.queueFamilyIndexCount = 2;
         createInfo.pQueueFamilyIndices = queueFamilyIndices;
     }
-    else {
+    else 
+    {
         createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     }
 
     createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
     createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+
+    //VSYNC
     createInfo.presentMode = presentMode;
     createInfo.clipped = VK_TRUE;
 
@@ -600,9 +709,9 @@ void VContext::createSwapChain()
         throw std::runtime_error("failed to create swap chain!");
     }
 
-    vkGetSwapchainImagesKHR(device.logicalDevice, swapChain, &imageCount, nullptr);
-    swapChainImages.resize(imageCount);
-    vkGetSwapchainImagesKHR(device.logicalDevice, swapChain, &imageCount, swapChainImages.data());
+    vkGetSwapchainImagesKHR(device.logicalDevice, swapChain, &device.swapChainImageCount, nullptr);
+    swapChainImages.resize(device.swapChainImageCount);
+    vkGetSwapchainImagesKHR(device.logicalDevice, swapChain, &device.swapChainImageCount, swapChainImages.data());
 
     swapChainImageFormat = surfaceFormat.format;
     swapChainExtent = extent;
@@ -636,7 +745,7 @@ void VContext::createImageViews()
     }
 }
 
-void VContext::CreateGraphicPipeLine()
+void VContext::createGraphicPipeline()
 {
     auto vertShaderCode = readFile("shaders/vert.spv");
     auto fragShaderCode = readFile("shaders/frag.spv");
@@ -786,7 +895,7 @@ void VContext::CreateGraphicPipeLine()
     vkDestroyShaderModule(device.logicalDevice, fragShaderModule, nullptr);
 }
 
-void VContext::CreateRenderPass()
+void VContext::createRenderpass()
 {
     VkAttachmentDescription colorAttachment = {};
     colorAttachment.format = swapChainImageFormat;
@@ -834,7 +943,7 @@ void VContext::CreateRenderPass()
     }
 }
 
-void VContext::CreateFrameBuffers()
+void VContext::createFramebuffers()
 {
     swapChainFramebuffers.resize(swapChainImageViews.size());
     for (size_t i = 0; i < swapChainImageViews.size(); i++) 
@@ -859,14 +968,14 @@ void VContext::CreateFrameBuffers()
     }
 }
 
-void VContext::CreateCommandPool()
+void VContext::createCommandpool()
 {
     QueueFamilyIndices queueFamilyIndices = FindQueueFamilies(device.physicalDevice);
 
     VkCommandPoolCreateInfo poolInfo = {};
     poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
-    poolInfo.flags = 0; // Optional
+    poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 
     if (vkCreateCommandPool(device.logicalDevice, &poolInfo, nullptr, &commandPool) != VK_SUCCESS)
     {
@@ -874,15 +983,12 @@ void VContext::CreateCommandPool()
     }
 }
 
-void VContext::CreateCommandBuffers()
+void VContext::createCommandbuffers()
 {
     commandBuffers.resize(swapChainFramebuffers.size());
-
-    VkCommandBufferAllocateInfo allocInfo = {};
-    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.commandPool = commandPool;
-    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandBufferCount = (uint32_t)commandBuffers.size();
+    VkCommandBufferAllocateInfo allocInfo = Initializers::commandBufferAllocateInfo(commandPool, 
+                                                                                    VK_COMMAND_BUFFER_LEVEL_PRIMARY, 
+                                                                                    commandBuffers.size());
 
     if (vkAllocateCommandBuffers(device.logicalDevice, &allocInfo, commandBuffers.data()) != VK_SUCCESS)
     {
@@ -924,7 +1030,7 @@ void VContext::CreateCommandBuffers()
     }
 }
 
-void VContext::CreateSemaphores()
+void VContext::createSemaphores()
 {
     VkSemaphoreCreateInfo semaphoreInfo = {};
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -937,7 +1043,7 @@ void VContext::CreateSemaphores()
     }
 }
 
-void VContext::DrawFrame()
+void VContext::drawFrame()
 {
     uint32_t imageIndex;
     vkAcquireNextImageKHR(device.logicalDevice, swapChain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);

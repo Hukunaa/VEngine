@@ -1,6 +1,8 @@
 #pragma once
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#include <Initializers.h>
+#include <Tools.h>
 
 #include <cstdint>
 #include <optional>
@@ -30,6 +32,8 @@ struct Device
     VkSurfaceKHR surface;
     /** @brief List of extensions supported by the device */
     std::vector<std::string> supportedExtensions;
+
+    uint32_t swapChainImageCount;
 };
 struct StorageImage 
 {
@@ -83,21 +87,21 @@ public:
 
     void SetupInstance();
     void SelectGPU();
-    void CreateLogicalDevice();
-    void CreateQueues();
+    void createLogicalDevice();
+    void createQueues();
     void createSwapChain();
     void createImageViews();
-    void CreateGraphicPipeLine();
-    void CreateRenderPass();
-    void CreateFrameBuffers();
-    void CreateCommandPool();
-    void CreateCommandBuffers();
-    void CreateSemaphores();
-    void DrawFrame();
+    void createGraphicPipeline();
+    void createRenderpass();
+    void createFramebuffers();
+    void createCommandpool();
+    void createCommandbuffers();
+    void createSemaphores();
+    void drawFrame();
 
     void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
     void SetupDebugMessenger();
-    void createStorageImage();
+    void createRayimage();
     void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
     void CleanUp();
 
@@ -110,8 +114,12 @@ public:
     VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
     VkShaderModule createShaderModule(const std::vector<char>& code);
     VkCommandBuffer beginSingleTimeCommands();
-    //uint32_t getMemoryType(uint32_t typeBits, VkMemoryPropertyFlags properties, VkBool32* memTypeFound = nullptr);
+    uint32_t getMemoryType(uint32_t typeBits, VkMemoryPropertyFlags properties, VkBool32* memTypeFound = nullptr);
+    VkCommandBuffer createCommandBuffer(VkCommandBufferLevel level, bool begin);
 
+
+
+    void flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue, bool free);
     bool CheckValidationLayerSupport();
     bool IsDeviceSuitable(VkPhysicalDevice device);
     bool checkDeviceExtensionSupport(VkPhysicalDevice device);
@@ -160,9 +168,11 @@ public:
     VkSemaphore imageAvailableSemaphore;
     VkSemaphore renderFinishedSemaphore;
 
+    std::vector<VkFence> waitFences;
+
+    StorageImage storageImage;
     /*VkDescriptorSet descriptorSet;
     VkDescriptorSetLayout descriptorSetLayout;
     VkPhysicalDeviceRayTracingPropertiesNV rayTracingProperties{};*/
-
 
 };

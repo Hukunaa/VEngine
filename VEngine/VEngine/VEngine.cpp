@@ -33,19 +33,19 @@ private:
         context.SetupInstance();
         context.SetupDebugMessenger();
         context.SelectGPU();
-        context.CreateLogicalDevice();
+        context.createLogicalDevice();
         context.createSwapChain();
         context.createImageViews();
-        context.CreateRenderPass();
+        context.createRenderpass();
 
         //----------
         //INSERT BACK HERE
         //----------
-        context.CreateGraphicPipeLine();
-        context.CreateFrameBuffers();
-        context.CreateCommandPool();
-        context.CreateCommandBuffers();
-        context.CreateSemaphores();
+        context.createGraphicPipeline();
+        context.createFramebuffers();
+        context.createCommandpool();
+        context.createCommandbuffers();
+        context.createSemaphores();
 
         //RASTERIZER PART
     }
@@ -55,7 +55,7 @@ private:
         while (!glfwWindowShouldClose(context.GetWindow())) 
         {
             glfwPollEvents();
-            context.DrawFrame();
+            context.drawFrame();
         }
     }
 };
