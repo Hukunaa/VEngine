@@ -1,6 +1,7 @@
 #include <Context.h>
 #include <set>
 #include <algorithm>
+#include <math.h>
 
 #ifdef NDEBUG
 const bool enableValidationLayers = false;
@@ -340,33 +341,18 @@ VkCommandBuffer VContext::beginSingleTimeCommands()
     }
 }
 
-uint32_t VContext::getMemoryType(uint32_t typeBits, VkMemoryPropertyFlags properties, VkBool32* memTypeFound)
+uint32_t VContext::GetMemoryType(VkMemoryRequirements& memoryRequierements, VkMemoryPropertyFlags p_memoryProperties, Device* device)
 {
-   for (uint32_t i = 0; i < device.memoryProperties.memoryTypeCount; i++)
-    {
-        if ((typeBits & 1) == 1)
-        {
-            if ((device.memoryProperties.memoryTypes[i].propertyFlags & properties) == properties)
-            {
-                if (memTypeFound)
-                {
-                    *memTypeFound = true;
-                }
-                return i;
+    uint32_t result = 0;
+    for (uint32_t memoryTypeIndex = 0; memoryTypeIndex < VK_MAX_MEMORY_TYPES; ++memoryTypeIndex) {
+        if (memoryRequierements.memoryTypeBits & (1 << memoryTypeIndex)) {
+            if ((device->memoryProperties.memoryTypes[memoryTypeIndex].propertyFlags & p_memoryProperties) == p_memoryProperties) {
+                result = memoryTypeIndex;
+                break;
             }
         }
-        typeBits >>= 1;
     }
-
-    if (memTypeFound)
-    {
-        *memTypeFound = false;
-        return 0;
-    }
-    else
-    {
-        throw std::runtime_error("Could not find a matching memory type");
-    }
+    return result;
 }
 
 VkCommandBuffer VContext::createCommandBuffer(VkCommandBufferLevel level, bool begin)
@@ -391,35 +377,6 @@ VkCommandBuffer VContext::createCommandBuffer(VkCommandBufferLevel level, bool b
     }
 
     return cmdBuffer;
-}
-
-void VContext::flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue, bool free)
-{
-    if (commandBuffer == VK_NULL_HANDLE)
-    {
-        return;
-    }
-
-    VkResult err = vkEndCommandBuffer(commandBuffer);
-
-    if (err != VK_SUCCESS)
-        std::runtime_error("failed to end commandBuffer!");
-
-    VkSubmitInfo submitInfo = {};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &commandBuffer;
-
-    if(vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS)
-        std::runtime_error("failed to free Queue Submit");
-
-    if(vkQueueWaitIdle(queue) != VK_SUCCESS);
-        std::runtime_error("failed to execute vkQueueWaitIdle");
-
-    if (free)
-    {
-        vkFreeCommandBuffers(device.logicalDevice, commandPool, 1, &commandBuffer);
-    }
 }
 
 bool VContext::CheckValidationLayerSupport()
@@ -568,62 +525,6 @@ void VContext::SetupDebugMessenger()
     if (CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS) {
         throw std::runtime_error("failed to set up debug messenger!");
     }
-}
-
-
-// Set up a storage image that the ray generation shader will be writing to
-void VContext::createRayimage()
-{
-    VkImageCreateInfo image = Initializers::imageCreateInfo();
-    image.imageType = VK_IMAGE_TYPE_2D;
-    image.format = swapChainImageFormat;
-    image.extent.width = WIDTH;
-    image.extent.height = HEIGHT;
-    image.extent.depth = 1;
-    image.mipLevels = 1;
-    image.arrayLayers = 1;
-    image.samples = VK_SAMPLE_COUNT_1_BIT;
-    image.tiling = VK_IMAGE_TILING_OPTIMAL;
-    image.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
-    image.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    VkResult err = vkCreateImage(device.logicalDevice, &image, nullptr, &storageImage.image);
-
-    VkMemoryRequirements memReqs;
-    vkGetImageMemoryRequirements(device.logicalDevice, storageImage.image, &memReqs);
-
-    VkMemoryAllocateInfo memoryAllocateInfo = Initializers::memoryAllocateInfo();
-    memoryAllocateInfo.allocationSize = memReqs.size;
-    memoryAllocateInfo.memoryTypeIndex = getMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-    VkResult err1 = vkAllocateMemory(device.logicalDevice, &memoryAllocateInfo, nullptr, &storageImage.memory);
-    if (err1 != VK_SUCCESS)
-        std::runtime_error("could not Allocate memory!");
-
-    VkResult err2(vkBindImageMemory(device.logicalDevice, storageImage.image, storageImage.memory, 0));
-    if (err2 != VK_SUCCESS)
-        std::runtime_error("could not Bind image memory!");
-
-    VkImageViewCreateInfo colorImageView = Initializers::imageViewCreateInfo();
-    colorImageView.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    colorImageView.format = swapChainImageFormat;
-    colorImageView.subresourceRange = {};
-    colorImageView.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    colorImageView.subresourceRange.baseMipLevel = 0;
-    colorImageView.subresourceRange.levelCount = 1;
-    colorImageView.subresourceRange.baseArrayLayer = 0;
-    colorImageView.subresourceRange.layerCount = 1;
-    colorImageView.image = storageImage.image;
-
-    VkResult err3 = vkCreateImageView(device.logicalDevice, &colorImageView, nullptr, &storageImage.view);
-    if (err3 != VK_SUCCESS)
-        std::runtime_error("could not Create image View!");
-
-    VkCommandBuffer cmdBuffer = createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
-    Tools::setImageLayout(cmdBuffer, storageImage.image,
-        VK_IMAGE_LAYOUT_UNDEFINED,
-        VK_IMAGE_LAYOUT_GENERAL,
-        { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }, 0,0);
-    flushCommandBuffer(cmdBuffer, presentQueue, false);
 }
 
 void VContext::DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) 
@@ -1094,4 +995,276 @@ VkResult VContext::CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDeb
     }
 
 }
+#pragma endregion
+
+#pragma region RayTracing
+bool VContext::CreateAS(const VkAccelerationStructureTypeNV type, const uint32_t geometryCount, const VkGeometryNV* geometries, const uint32_t instanceCount, RTAccelerationStructure& _as)
+{
+    _as.accInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
+    _as.accInfo.pNext = nullptr;
+    _as.accInfo.type = type;
+    _as.accInfo.flags = 0;
+    _as.accInfo.instanceCount = instanceCount;
+    _as.accInfo.geometryCount = geometryCount;
+    _as.accInfo.pGeometries = geometries;
+
+    VkAccelerationStructureCreateInfoNV accelerationStructureInfo;
+    accelerationStructureInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_NV;
+    accelerationStructureInfo.pNext = nullptr;
+    accelerationStructureInfo.compactedSize = 0;
+    accelerationStructureInfo.info = _as.accInfo;
+
+    VkResult error = vkCreateAccelerationStructureNV(device.logicalDevice, &accelerationStructureInfo, nullptr, &_as.accelerationStructure);
+    if (VK_SUCCESS != error) {
+        std::runtime_error("vkCreateAccelerationStructureNV");
+        return false;
+    }
+
+    VkAccelerationStructureMemoryRequirementsInfoNV memoryRequirementsInfo;
+    memoryRequirementsInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NV;
+    memoryRequirementsInfo.pNext = nullptr;
+    memoryRequirementsInfo.accelerationStructure = _as.accelerationStructure;
+
+    VkMemoryRequirements2 memoryRequirements;
+    vkGetAccelerationStructureMemoryRequirementsNV(device.logicalDevice, &memoryRequirementsInfo, &memoryRequirements);
+
+    VkMemoryAllocateInfo memoryAllocateInfo;
+    memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    memoryAllocateInfo.pNext = nullptr;
+    memoryAllocateInfo.allocationSize = memoryRequirements.memoryRequirements.size;
+    memoryAllocateInfo.memoryTypeIndex = GetMemoryType(memoryRequirements.memoryRequirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &device);
+
+    error = vkAllocateMemory(device.logicalDevice, &memoryAllocateInfo, nullptr, &_as.memory);
+    if (VK_SUCCESS != error) {
+        std::runtime_error("vkAllocateMemory for AS");
+        return false;
+    }
+
+    VkBindAccelerationStructureMemoryInfoNV bindInfo;
+    bindInfo.sType = VK_STRUCTURE_TYPE_BIND_ACCELERATION_STRUCTURE_MEMORY_INFO_NV;
+    bindInfo.pNext = nullptr;
+    bindInfo.accelerationStructure = _as.accelerationStructure;
+    bindInfo.memory = _as.memory;
+    bindInfo.memoryOffset = 0;
+    bindInfo.deviceIndexCount = 0;
+    bindInfo.pDeviceIndices = nullptr;
+
+    error = vkBindAccelerationStructureMemoryNV(device.logicalDevice, 1, &bindInfo);
+    if (VK_SUCCESS != error) {
+        std::runtime_error("vkBindAccelerationStructureMemoryNVX");
+        return false;
+    }
+
+    error = vkGetAccelerationStructureHandleNV(device.logicalDevice, _as.accelerationStructure, sizeof(uint64_t), &_as.handle);
+    if (VK_SUCCESS != error) {
+        std::runtime_error("vkGetAccelerationStructureHandleNVX");
+        return false;
+    }
+
+    return true;
+}
+
+void VContext::FillCommandBuffer(VkCommandBuffer commandBuffer, const size_t imageIndex)
+{
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_NV, mRTPipeline);
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_NV, mRTPipelineLayout, 0, 1, &mRTDescriptorSet, 0, 0);
+
+    // |[ raygen ]|[closest hit]|[miss]|
+    // | 0        | 1           | 2    |
+
+    VkBuffer sbtBuffer = mShaderBindingTable.GetBuffer();
+    vkCmdTraceRaysNV(commandBuffer, sbtBuffer, 0, sbtBuffer, 2 * mRTProps.shaderHeaderSize, mRTProps.shaderHeaderSize,
+                                                  sbtBuffer, 1 * mRTProps.shaderHeaderSize, mRTProps.shaderHeaderSize,
+                                                  WIDTH, HEIGHT);
+}
+
+void VContext::CreateScene() {
+    VBuffer::Buffer vb(device), ib(device);
+
+    const float vertices[9] = {
+        0.25f, 0.25f, 0.0f,
+        0.75f, 0.25f, 0.0f,
+        0.50f, 0.75f, 0.0f
+    };
+
+    const uint32_t indices[3] = { 0, 1, 2 };
+
+    VkResult error = vb.Create(sizeof(vertices), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_RAY_TRACING_BIT_NV, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    if(error != VK_SUCCESS)
+        std::runtime_error("vb.Create");
+
+    if (!vb.UploadData(vertices, vb.GetSize())) {
+        assert(false && "Failed to upload vertex buffer");
+    }
+
+    error = ib.Create(sizeof(indices), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_RAY_TRACING_BIT_NV, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    if (error != VK_SUCCESS)
+        std::runtime_error("ib.Create");
+
+    if (!ib.UploadData(indices, ib.GetSize())) {
+        assert(false && "Failed to upload index buffer");
+    }
+
+    VkGeometryNV geometry;
+    geometry.sType = VK_STRUCTURE_TYPE_GEOMETRY_NV;
+    geometry.pNext = nullptr;
+    geometry.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_NV;
+    geometry.geometry.triangles.sType = VK_STRUCTURE_TYPE_GEOMETRY_TRIANGLES_NV;
+    geometry.geometry.triangles.pNext = nullptr;
+    geometry.geometry.triangles.vertexData = vb.GetBuffer();
+    geometry.geometry.triangles.vertexOffset = 0;
+    geometry.geometry.triangles.vertexCount = 3;
+    geometry.geometry.triangles.vertexStride = sizeof(glm::highp_vec3);
+    geometry.geometry.triangles.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
+    geometry.geometry.triangles.indexData = ib.GetBuffer();
+    geometry.geometry.triangles.indexOffset = 0;
+    geometry.geometry.triangles.indexCount = 3;
+    geometry.geometry.triangles.indexType = VK_INDEX_TYPE_UINT32;
+    geometry.geometry.triangles.transformData = VK_NULL_HANDLE;
+    geometry.geometry.triangles.transformOffset = 0;
+    geometry.geometry.aabbs = { };
+    geometry.geometry.aabbs.sType = VK_STRUCTURE_TYPE_GEOMETRY_AABB_NV;
+    geometry.flags = VK_GEOMETRY_OPAQUE_BIT_NV;
+
+
+    // here we create our bottom-level acceleration structure for our happy triangle
+    bottomLevelAS.resize(1);
+    CreateAS(VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_NV, 1, &geometry, 0, bottomLevelAS[0]);
+
+
+    // create an instance for our triangle
+    VBuffer::Buffer instancesBuffer;
+
+    const float transform[12] = {
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+    };
+
+    VkGeometryInstance instance;
+    std::memcpy(instance.transform, transform, sizeof(transform));
+    instance.instanceId = 0;
+    instance.mask = 0xff;
+    instance.instanceOffset = 0;
+    instance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_CULL_DISABLE_BIT_NV;
+    instance.accelerationStructureHandle = bottomLevelAS[0].handle;
+
+    error = instancesBuffer.Create(sizeof(instance), VK_BUFFER_USAGE_RAY_TRACING_BIT_NV, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    if(error != VK_SUCCESS)
+        std::runtime_error("instancesBuffer.Create");
+
+    if (!instancesBuffer.UploadData(&instance, instancesBuffer.GetSize())) {
+        assert(false && "Failed to upload instances buffer");
+    }
+
+
+    // and here we create out top-level acceleration structure that'll represent our scene
+    this->CreateAS(VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_NV, 0, nullptr, 1, topLevelAS);
+
+    // now we have to build them
+
+    VkAccelerationStructureMemoryRequirementsInfoNV memoryRequirementsInfo;
+    memoryRequirementsInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NV;
+    memoryRequirementsInfo.pNext = nullptr;
+    memoryRequirementsInfo.accelerationStructure = bottomLevelAS[0].accelerationStructure;
+
+    VkMemoryRequirements2 memReqBottomAS, memReqTopAS;
+    vkGetAccelerationStructureMemoryRequirementsNV(device.logicalDevice, &memoryRequirementsInfo, &memReqBottomAS);
+
+    memoryRequirementsInfo.accelerationStructure = topLevelAS.accelerationStructure;
+    vkGetAccelerationStructureMemoryRequirementsNV(device.logicalDevice, &memoryRequirementsInfo, &memReqTopAS);
+
+    const VkDeviceSize scratchBufferSize = std::max(memReqBottomAS.memoryRequirements.size, memReqTopAS.memoryRequirements.size);
+
+    VBuffer::Buffer scratchBuffer;
+    error = scratchBuffer.Create(scratchBufferSize, VK_BUFFER_USAGE_RAY_TRACING_BIT_NV, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    if(error != VK_SUCCESS)
+        std::runtime_error("scratchBuffer.Create");
+
+    VkCommandBufferAllocateInfo commandBufferAllocateInfo;
+    commandBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    commandBufferAllocateInfo.pNext = nullptr;
+    commandBufferAllocateInfo.commandPool = commandPool;
+    commandBufferAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    commandBufferAllocateInfo.commandBufferCount = 1;
+
+    VkCommandBuffer commandBuffer = VK_NULL_HANDLE;
+    error = vkAllocateCommandBuffers(device.logicalDevice, &commandBufferAllocateInfo, &commandBuffer);
+    if (error != VK_SUCCESS)
+        std::runtime_error("vkAllocateCommandBuffers");
+
+
+    VkCommandBufferBeginInfo beginInfo;
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.pNext = nullptr;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    beginInfo.pInheritanceInfo = nullptr;
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+    VkMemoryBarrier memoryBarrier;
+    memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+    memoryBarrier.pNext = nullptr;
+    memoryBarrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_NV | VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_NV;
+    memoryBarrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_NV | VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_NV;
+
+    // build bottom-level AS
+
+    vkCmdBuildAccelerationStructureNV(commandBuffer,
+        &bottomLevelAS[0].accInfo,
+        VK_NULL_HANDLE,
+        0,
+        VK_FALSE,
+        bottomLevelAS[0].accelerationStructure,
+        VK_NULL_HANDLE,
+        scratchBuffer.GetBuffer(),
+        0);
+
+    /*vkCmdBuildAccelerationStructureNV(commandBuffer,
+        &bottomLevelAS[0].accInfo,
+        0, VK_NULL_HANDLE, 0,
+        1, &geometry,
+        0, VK_FALSE,
+        bottomLevelAS[0].accelerationStructure, VK_NULL_HANDLE,
+        scratchBuffer.GetBuffer(), 0);*/
+
+    vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, 0, 1, &memoryBarrier, 0, 0, 0, 0);
+
+    // build top-level AS
+    vkCmdBuildAccelerationStructureNV(commandBuffer, 
+        &topLevelAS.accInfo, 
+        instancesBuffer.GetBuffer(), 
+        0, 
+        VK_FALSE, 
+        topLevelAS.accelerationStructure, 
+        VK_NULL_HANDLE, 
+        scratchBuffer.GetBuffer(), 
+        0);
+    /*vkCmdBuildAccelerationStructureNV(commandBuffer,
+        VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_NVX,
+        1, instancesBuffer.GetBuffer(), 0,
+        0, nullptr,
+        0, VK_FALSE,
+        mScene.topLevelAS.accelerationStructure, VK_NULL_HANDLE,
+        scratchBuffer.GetBuffer(), 0);*/
+
+    vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_NV, 0, 1, &memoryBarrier, 0, 0, 0, 0);
+
+    vkEndCommandBuffer(commandBuffer);
+
+    VkSubmitInfo submitInfo;
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.pNext = nullptr;
+    submitInfo.waitSemaphoreCount = 0;
+    submitInfo.pWaitSemaphores = nullptr;
+    submitInfo.pWaitDstStageMask = nullptr;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+    submitInfo.signalSemaphoreCount = 0;
+    submitInfo.pSignalSemaphores = nullptr;
+
+    vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(graphicsQueue);
+    vkFreeCommandBuffers(device.logicalDevice, commandPool, 1, &commandBuffer);
+}
+
 #pragma endregion

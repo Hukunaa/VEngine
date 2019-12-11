@@ -13,6 +13,16 @@
 #include <iostream>
 #include <map>
 
+struct VkGeometryInstance 
+{
+    float transform[12];
+    uint32_t instanceId : 24;
+    uint32_t mask : 8;
+    uint32_t instanceOffset : 24;
+    uint32_t flags : 8;
+    uint64_t accelerationStructureHandle;
+};
+
 struct Device
 {
     VkPhysicalDevice physicalDevice;
@@ -35,12 +45,13 @@ struct Device
 
     uint32_t swapChainImageCount;
 };
-struct StorageImage 
+
+struct RTAccelerationStructure 
 {
-    VkDeviceMemory memory;
-    VkImage image;
-    VkImageView view;
-    VkFormat format;
+    VkDeviceMemory              memory;
+    VkAccelerationStructureNV  accelerationStructure;
+    uint64_t                    handle;
+    VkAccelerationStructureInfoNV accInfo;
 };
 
 struct UniformData
@@ -73,6 +84,7 @@ struct SwapChainSupportDetails
     std::vector<VkSurfaceFormatKHR> formats;
     std::vector<VkPresentModeKHR> presentModes;
 };
+
 class VContext
 {
 public:
@@ -101,7 +113,6 @@ public:
 
     void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
     void SetupDebugMessenger();
-    void createRayimage();
     void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
     void CleanUp();
 
@@ -114,12 +125,10 @@ public:
     VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
     VkShaderModule createShaderModule(const std::vector<char>& code);
     VkCommandBuffer beginSingleTimeCommands();
-    uint32_t getMemoryType(uint32_t typeBits, VkMemoryPropertyFlags properties, VkBool32* memTypeFound = nullptr);
+    static uint32_t GetMemoryType(VkMemoryRequirements& memoryRequiriments, VkMemoryPropertyFlags memoryProperties, Device* device);
     VkCommandBuffer createCommandBuffer(VkCommandBufferLevel level, bool begin);
 
 
-
-    void flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue, bool free);
     bool CheckValidationLayerSupport();
     bool IsDeviceSuitable(VkPhysicalDevice device);
     bool checkDeviceExtensionSupport(VkPhysicalDevice device);
@@ -134,10 +143,24 @@ public:
 
 
     GLFWwindow* GetWindow() { return window; }
-public:
 
     std::vector<const char*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
-    const std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_NV_RAY_TRACING_EXTENSION_NAME,VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME };
+    const std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, 
+        VK_NV_RAY_TRACING_EXTENSION_NAME,
+        VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME};
+
+
+    bool CreateAS(const VkAccelerationStructureTypeNV type,
+        const uint32_t 
+        
+        
+        Count,
+        const VkGeometryNV* geometries,
+        const uint32_t instanceCount,
+        RTAccelerationStructure& _as);
+    void FillCommandBuffer(VkCommandBuffer commandBuffer, const size_t imageIndex);
+
+    void CreateScene();
 
     GLFWwindow* window;
 
@@ -168,11 +191,23 @@ public:
     VkSemaphore imageAvailableSemaphore;
     VkSemaphore renderFinishedSemaphore;
 
-    std::vector<VkFence> waitFences;
+    const float vertices[9] =
+    {
+        0.25f, 0.25f, 0.0f,
+        0.75f, 0.25f, 0.0f,
+        0.50f, 0.75f, 0.0f
+    };
 
-    StorageImage storageImage;
-    /*VkDescriptorSet descriptorSet;
-    VkDescriptorSetLayout descriptorSetLayout;
-    VkPhysicalDeviceRayTracingPropertiesNV rayTracingProperties{};*/
+    const uint32_t indices[3] = { 0, 1, 2 };
 
+    std::vector<RTAccelerationStructure>  bottomLevelAS;
+    RTAccelerationStructure topLevelAS;
+
+    VkDescriptorSetLayout   mRTDescriptorSetLayout;
+    VkPipelineLayout        mRTPipelineLayout;
+    VkPipeline              mRTPipeline;
+    VkDescriptorPool        mRTDescriptorPool;
+    VkDescriptorSet         mRTDescriptorSet;
+
+    VBuffer::Buffer mShaderBindingTable;
 };

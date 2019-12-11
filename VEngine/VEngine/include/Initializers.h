@@ -2,6 +2,10 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <vector>
+#include <assert.h>
+#include <Context.h>
+
+struct Device;
 
 namespace Initializers
 {
@@ -546,4 +550,137 @@ namespace Initializers
         specializationInfo.pData = data;
         return specializationInfo;
     }
+}
+
+namespace VBuffer
+{
+    class Buffer 
+    {
+    public:
+
+        Buffer() = default;
+        Buffer(Device& p_device) : mBuffer(VK_NULL_HANDLE), mMemory(VK_NULL_HANDLE), mSize(0), device(&p_device){}
+        ~Buffer()
+        {
+            this->Destroy();
+        }
+
+        VkResult Create(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memoryProperties)
+        {
+            VkResult result = VK_SUCCESS;
+
+            VkBufferCreateInfo bufferCreateInfo;
+            bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+            bufferCreateInfo.pNext = nullptr;
+            bufferCreateInfo.flags = 0;
+            bufferCreateInfo.size = size;
+            bufferCreateInfo.usage = usage;
+            bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+            bufferCreateInfo.queueFamilyIndexCount = 0;
+            bufferCreateInfo.pQueueFamilyIndices = nullptr;
+
+            mSize = size;
+
+            result = vkCreateBuffer(device->logicalDevice , &bufferCreateInfo, nullptr, &mBuffer);
+            if (VK_SUCCESS == result) {
+                VkMemoryRequirements memoryRequirements;
+                vkGetBufferMemoryRequirements(device->logicalDevice, mBuffer, &memoryRequirements);
+
+                VkMemoryAllocateInfo memoryAllocateInfo;
+                memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+                memoryAllocateInfo.pNext = nullptr;
+                memoryAllocateInfo.allocationSize = memoryRequirements.size;
+
+                uint32_t result = 0;
+                for (uint32_t memoryTypeIndex = 0; memoryTypeIndex < VK_MAX_MEMORY_TYPES; ++memoryTypeIndex) {
+                    if (memoryRequirements.memoryTypeBits & (1 << memoryTypeIndex)) {
+                        if ((device->memoryProperties.memoryTypes[memoryTypeIndex].propertyFlags & memoryProperties) == memoryProperties) {
+                            result = memoryTypeIndex;
+                            break;
+                        }
+                    }
+                }
+                memoryAllocateInfo.memoryTypeIndex = result;
+
+                result = vkAllocateMemory(device->logicalDevice, &memoryAllocateInfo, nullptr, &mMemory);
+                if (VK_SUCCESS != result) {
+                    vkDestroyBuffer(device->logicalDevice, mBuffer, nullptr);
+                    mBuffer = VK_NULL_HANDLE;
+                    mMemory = VK_NULL_HANDLE;
+                }
+                else {
+                    result = vkBindBufferMemory(device->logicalDevice, mBuffer, mMemory, 0);
+                    if (VK_SUCCESS != result) {
+                        vkDestroyBuffer(device->logicalDevice, mBuffer, nullptr);
+                        vkFreeMemory(device->logicalDevice, mMemory, nullptr);
+                        mBuffer = VK_NULL_HANDLE;
+                        mMemory = VK_NULL_HANDLE;
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        void Destroy()
+        {
+            if (mBuffer) {
+                vkDestroyBuffer(device->logicalDevice, mBuffer, nullptr);
+                mBuffer = VK_NULL_HANDLE;
+            }
+            if (mMemory) {
+                vkFreeMemory(device->logicalDevice, mMemory, nullptr);
+                mMemory = VK_NULL_HANDLE;
+            }
+        }
+
+        void* Map(VkDeviceSize size = UINT64_MAX, VkDeviceSize offset = 0)
+        {
+            void* mem = nullptr;
+
+            if (size > mSize) 
+            {
+                size = mSize;
+            }
+
+            VkResult result = vkMapMemory(device->logicalDevice, mMemory, offset, size, 0, &mem);
+            if (VK_SUCCESS != result) 
+            {
+                mem = nullptr;
+            }
+
+            return mem;
+        }
+        void Unmap(Device* device)
+        {
+            vkUnmapMemory(device->logicalDevice, mMemory);
+        }
+
+        bool UploadData(const void* data, VkDeviceSize size, VkDeviceSize offset = 0)
+        {
+            bool result = false;
+
+            void* mem = this->Map(size, offset);
+            if (mem) {
+                std::memcpy(mem, data, size);
+                this->Unmap(device);
+            }
+            return true;
+        }
+
+        // getters
+        VkBuffer GetBuffer() const {
+            return mBuffer;
+        }
+
+        VkDeviceSize GetSize() const {
+            return mSize;
+        }
+
+    private:
+        VkBuffer        mBuffer;
+        VkDeviceMemory  mMemory;
+        VkDeviceSize    mSize;
+        Device* device{};
+    };
 }
