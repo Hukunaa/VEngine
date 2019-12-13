@@ -34,18 +34,41 @@ private:
         context.SetupDebugMessenger();
         context.SelectGPU();
         context.createLogicalDevice();
-        context.createSwapChain();
+
+        context.initSwapChain();
+        context.createCommandpool();
+        context.setupSwapChain(WIDTH, HEIGHT, false);
+        context.createCommandbuffers();
+        context.createSynchronizationPrimitives();
+        context.setupDepthstencil();
+        context.setupRenderPass();
+        context.createPipelineCache();
+        context.setupFrameBuffer();
+
+        context.setupRayTracingSupport();
+
+
+
+       /* context.initSwapChain();
+        context.setupFrameBuffer();
+        context.createCommandbuffers();
+        context.createSynchronizationPrimitives();
         context.createImageViews();
         context.createRenderpass();
+        context.createPipelineCache();*/
 
+        //context.createRenderpass();
+
+        //context.CreateScene();
+        //context.CreateRaytracingPipeline();
+        //context.CreateShaderBindingTable();
+        //context.CreateDescriptorSet();
         //----------
         //INSERT BACK HERE
         //----------
-        context.createGraphicPipeline();
+        /*context.createGraphicPipeline();
         context.createFramebuffers();
-        context.createCommandpool();
-        context.createCommandbuffers();
-        context.createSemaphores();
+        context.createSemaphores();*/
 
         //RASTERIZER PART
     }
@@ -55,7 +78,7 @@ private:
         while (!glfwWindowShouldClose(context.GetWindow())) 
         {
             glfwPollEvents();
-            context.drawFrame();
+            //context.drawFrame();
         }
     }
 };

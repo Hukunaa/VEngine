@@ -3,6 +3,8 @@
 #include <GLFW/glfw3.h>
 #include <Initializers.h>
 #include <Tools.h>
+#include <Device.h>
+#include <Camera.h>
 
 #include <cstdint>
 #include <optional>
@@ -13,9 +15,33 @@
 #include <iostream>
 #include <map>
 
-struct VkGeometryInstance 
+struct UniformData 
 {
-    float transform[12];
+    glm::mat4 viewInverse;
+    glm::mat4 projInverse;
+};
+
+struct SwapChainBuffer
+{
+    VkImage image;
+    VkImageView view;
+};
+
+struct SwapChain
+{
+    VkFormat colorFormat;
+    VkColorSpaceKHR colorSpace;
+    /** @brief Handle to the current swap chain, required for recreation */
+    VkSwapchainKHR swapChain = VK_NULL_HANDLE;
+    uint32_t imageCount;
+    std::vector<VkImage> images;
+    std::vector<SwapChainBuffer> buffers;
+    /** @brief Queue family index of the detected graphics and presenting device queue */
+    uint32_t queueNodeIndex = 5000000;
+};
+struct GeometryInstance 
+{
+    glm::mat3x4 transform;
     uint32_t instanceId : 24;
     uint32_t mask : 8;
     uint32_t instanceOffset : 24;
@@ -23,27 +49,11 @@ struct VkGeometryInstance
     uint64_t accelerationStructureHandle;
 };
 
-struct Device
+struct AccelerationStructure 
 {
-    VkPhysicalDevice physicalDevice;
-    /** @brief Logical device representation (application's view of the device) */
-    VkDevice logicalDevice;
-    /** @brief Properties of the physical device including limits that the application can check against */
-    VkPhysicalDeviceProperties properties;
-    /** @brief Features of the physical device that an application can use to check if a feature is supported */
-    VkPhysicalDeviceFeatures features;
-    /** @brief Features that have been enabled for use on the physical device */
-    VkPhysicalDeviceFeatures enabledFeatures;
-    /** @brief Memory types and heaps of the physical device */
-    VkPhysicalDeviceMemoryProperties memoryProperties;
-    /** @brief Queue family properties of the physical device */
-    std::vector<VkQueueFamilyProperties> queueFamilyProperties;
-    /** @brief KHR Surface of te device */
-    VkSurfaceKHR surface;
-    /** @brief List of extensions supported by the device */
-    std::vector<std::string> supportedExtensions;
-
-    uint32_t swapChainImageCount;
+    VkDeviceMemory memory;
+    VkAccelerationStructureNV accelerationStructure;
+    uint64_t handle;
 };
 
 struct RTAccelerationStructure 
@@ -52,12 +62,6 @@ struct RTAccelerationStructure
     VkAccelerationStructureNV  accelerationStructure;
     uint64_t                    handle;
     VkAccelerationStructureInfoNV accInfo;
-};
-
-struct UniformData
-{
-    glm::mat4 viewInverse;
-    glm::mat4 projInverse;
 };
 
 struct Vertex
@@ -85,6 +89,14 @@ struct SwapChainSupportDetails
     std::vector<VkPresentModeKHR> presentModes;
 };
 
+struct StorageImage
+{
+    VkDeviceMemory memory;
+    VkImage image;
+    VkImageView view;
+    VkFormat format;
+};
+
 class VContext
 {
 public:
@@ -101,12 +113,12 @@ public:
     void SelectGPU();
     void createLogicalDevice();
     void createQueues();
-    void createSwapChain();
+    void initSwapChain();
     void createImageViews();
-    void createGraphicPipeline();
     void createRenderpass();
     void createFramebuffers();
     void createCommandpool();
+    //void createGraphicPipeline();
     void createCommandbuffers();
     void createSemaphores();
     void drawFrame();
@@ -120,12 +132,7 @@ public:
     SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
     VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger);
     VkInstance& GetInstance() { return instance; }
-    VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
-    VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
-    VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
     VkShaderModule createShaderModule(const std::vector<char>& code);
-    VkCommandBuffer beginSingleTimeCommands();
-    static uint32_t GetMemoryType(VkMemoryRequirements& memoryRequiriments, VkMemoryPropertyFlags memoryProperties, Device* device);
     VkCommandBuffer createCommandBuffer(VkCommandBufferLevel level, bool begin);
 
 
@@ -150,36 +157,15 @@ public:
         VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME};
 
 
-    bool CreateAS(const VkAccelerationStructureTypeNV type,
-        const uint32_t 
-        
-        
-        Count,
-        const VkGeometryNV* geometries,
-        const uint32_t instanceCount,
-        RTAccelerationStructure& _as);
-    void FillCommandBuffer(VkCommandBuffer commandBuffer, const size_t imageIndex);
-
-    void CreateScene();
-
     GLFWwindow* window;
 
     VkInstance instance;
     VkDebugUtilsMessengerEXT debugMessenger;
 
-    Device device;
+    VDevice::Device device;
 
     VkQueue graphicsQueue;
     VkQueue presentQueue;
-
-    VkSwapchainKHR swapChain;
-    VkFormat swapChainImageFormat;
-    VkExtent2D swapChainExtent;
-
-    VkViewport viewport = {};
-    VkRenderPass renderPass;
-    VkPipeline graphicsPipeline;
-    VkPipelineLayout pipelineLayout;
 
     VkCommandPool commandPool;
     
@@ -191,23 +177,111 @@ public:
     VkSemaphore imageAvailableSemaphore;
     VkSemaphore renderFinishedSemaphore;
 
-    const float vertices[9] =
-    {
-        0.25f, 0.25f, 0.0f,
-        0.75f, 0.25f, 0.0f,
-        0.50f, 0.75f, 0.0f
-    };
+    AccelerationStructure bottomLevelAS;
+    AccelerationStructure topLevelAS;
 
-    const uint32_t indices[3] = { 0, 1, 2 };
+    SwapChain swapChain;
+    VkRenderPass renderPass;
+    VkPipeline Rpipeline;
+    VkPipelineLayout RpipelineLayout;
+    VkDescriptorSet RdescriptorSet;
+    VkDescriptorSetLayout RdescriptorSetLayout;
+    VkDescriptorPool descriptorPool;
+    std::vector<VkShaderModule> shaderModules;
 
-    std::vector<RTAccelerationStructure>  bottomLevelAS;
-    RTAccelerationStructure topLevelAS;
-
-    VkDescriptorSetLayout   mRTDescriptorSetLayout;
-    VkPipelineLayout        mRTPipelineLayout;
-    VkPipeline              mRTPipeline;
-    VkDescriptorPool        mRTDescriptorPool;
-    VkDescriptorSet         mRTDescriptorSet;
+    uint32_t indexCount;
 
     VBuffer::Buffer mShaderBindingTable;
+    VBuffer::Buffer vertexBuffer;
+    VBuffer::Buffer indexBuffer;
+    VBuffer::Buffer ubo;
+
+    StorageImage storageImage;
+    VkPhysicalDeviceRayTracingPropertiesNV rayTracingProperties{};
+    std::vector<VkFence> waitFences;
+    VkFormat depthFormat;
+    VkPipelineCache pipelineCache;
+    UniformData uniformData;
+    Camera camera;
+
+    struct
+    {
+        VkImage image;
+        VkDeviceMemory mem;
+        VkImageView view;
+    } depthStencil;
+
+    void CHECK_ERROR(VkResult result);
+    void setupSwapChain(uint32_t width, uint32_t height, bool vsync = false);
+    VkResult acquireNextImage(VkSemaphore presentCompleteSemaphore, uint32_t* imageIndex);
+    VkResult queuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore waitSemaphore);
+
+    uint32_t getMemoryType(uint32_t typeBits, VkMemoryPropertyFlags properties, VkBool32* memTypeFound = nullptr);
+    VkPipelineShaderStageCreateInfo loadShader(std::string fileName, VkShaderStageFlagBits stage);
+    VkResult createBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize size, VkBuffer* buffer, VkDeviceMemory* memory, void* data = nullptr);
+    VkBool32 getSupportedDepthFormat(VkPhysicalDevice physicalDevice, VkFormat* depthFormat);
+    void CreateBLAS(const VkGeometryNV* geometries);
+    void CreateTLAS();
+    void CreateStorageImage();
+    void createScene();
+    void createRayTracingPipeline();
+    void createSynchronizationPrimitives();
+    void createPipelineCache();
+    void setupFrameBuffer();
+    void setupDepthstencil();
+    void setupRenderPass();
+
+    /**
+    * Create a buffer on the device
+    *
+    * @param usageFlags Usage flag bitmask for the buffer (i.e. index, vertex, uniform buffer)
+    * @param memoryPropertyFlags Memory properties for this buffer (i.e. device local, host visible, coherent)
+    * @param buffer Pointer to a vk::Vulkan buffer object
+    * @param size Size of the buffer in byes
+    * @param data Pointer to the data that should be copied to the buffer after creation (optional, if not set, no data is copied over)
+    *
+    * @return VK_SUCCESS if buffer handle and memory have been created and (optionally passed) data has been copied
+    */
+    VkResult createBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VBuffer::Buffer* buffer, VkDeviceSize size, void* data = nullptr);
+
+    void setImageLayout(
+        VkCommandBuffer cmdbuffer,
+        VkImage image,
+        VkImageLayout oldImageLayout,
+        VkImageLayout newImageLayout,
+        VkImageSubresourceRange subresourceRange,
+        VkPipelineStageFlags srcStageMask,
+        VkPipelineStageFlags dstStageMask);
+
+    void setImageLayout(
+        VkCommandBuffer cmdbuffer,
+        VkImage image,
+        VkImageAspectFlags aspectMask,
+        VkImageLayout oldImageLayout,
+        VkImageLayout newImageLayout,
+        VkPipelineStageFlags srcStageMask,
+        VkPipelineStageFlags dstStageMask);
+
+    void flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue, bool free = true);
+    void createShaderBindingTable();
+    VkDeviceSize copyShaderIdentifier(uint8_t* data, const uint8_t* shaderHandleStorage, uint32_t groupIndex);
+    void createDescriptorSets();
+    void createUniformBuffer();
+    void updateUniformBuffers();
+
+    void buildCommandbuffers();
+
+    void setupRayTracingSupport();
+
+    // Function pointers
+   /* PFN_vkGetPhysicalDeviceSurfaceSupportKHR fpGetPhysicalDeviceSurfaceSupportKHR;
+    PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR fpGetPhysicalDeviceSurfaceCapabilitiesKHR;
+    PFN_vkGetPhysicalDeviceSurfaceFormatsKHR fpGetPhysicalDeviceSurfaceFormatsKHR;
+    PFN_vkGetPhysicalDeviceSurfacePresentModesKHR fpGetPhysicalDeviceSurfacePresentModesKHR;
+    PFN_vkCreateSwapchainKHR fpCreateSwapchainKHR;
+    PFN_vkDestroySwapchainKHR fpDestroySwapchainKHR;
+    PFN_vkGetSwapchainImagesKHR fpGetSwapchainImagesKHR;
+    PFN_vkAcquireNextImageKHR fpAcquireNextImageKHR;
+    PFN_vkQueuePresentKHR fpQueuePresentKHR;*/
+
 };

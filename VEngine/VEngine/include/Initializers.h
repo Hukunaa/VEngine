@@ -3,9 +3,8 @@
 #include <GLFW/glfw3.h>
 #include <vector>
 #include <assert.h>
-#include <Context.h>
-
-struct Device;
+#include <Device.h>
+#include <fstream>
 
 namespace Initializers
 {
@@ -554,133 +553,205 @@ namespace Initializers
 
 namespace VBuffer
 {
-    class Buffer 
+    struct Buffer
     {
-    public:
+        VkDevice device;
+        VkBuffer buffer = VK_NULL_HANDLE;
+        VkDeviceMemory memory = VK_NULL_HANDLE;
+        VkDescriptorBufferInfo descriptor;
+        VkDeviceSize size = 0;
+        VkDeviceSize alignment = 0;
+        void* mapped = nullptr;
 
-        Buffer() = default;
-        Buffer(Device& p_device) : mBuffer(VK_NULL_HANDLE), mMemory(VK_NULL_HANDLE), mSize(0), device(&p_device){}
-        ~Buffer()
+        /** @brief Usage flags to be filled by external source at buffer creation (to query at some later point) */
+        VkBufferUsageFlags usageFlags;
+        /** @brief Memory propertys flags to be filled by external source at buffer creation (to query at some later point) */
+        VkMemoryPropertyFlags memoryPropertyFlags;
+
+        /**
+        * Map a memory range of this buffer. If successful, mapped points to the specified buffer range.
+        *
+        * @param size (Optional) Size of the memory range to map. Pass VK_WHOLE_SIZE to map the complete buffer range.
+        * @param offset (Optional) Byte offset from beginning
+        *
+        * @return VkResult of the buffer mapping call
+        */
+        VkResult map(VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0)
         {
-            this->Destroy();
+            return vkMapMemory(device, memory, offset, size, 0, &mapped);
         }
 
-        VkResult Create(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memoryProperties)
+        /**
+        * Unmap a mapped memory range
+        *
+        * @note Does not return a result as vkUnmapMemory can't fail
+        */
+        void unmap()
         {
-            VkResult result = VK_SUCCESS;
+            if (mapped)
+            {
+                vkUnmapMemory(device, memory);
+                mapped = nullptr;
+            }
+        }
 
-            VkBufferCreateInfo bufferCreateInfo;
-            bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-            bufferCreateInfo.pNext = nullptr;
-            bufferCreateInfo.flags = 0;
-            bufferCreateInfo.size = size;
-            bufferCreateInfo.usage = usage;
-            bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-            bufferCreateInfo.queueFamilyIndexCount = 0;
-            bufferCreateInfo.pQueueFamilyIndices = nullptr;
+        /**
+        * Attach the allocated memory block to the buffer
+        *
+        * @param offset (Optional) Byte offset (from the beginning) for the memory region to bind
+        *
+        * @return VkResult of the bindBufferMemory call
+        */
+        VkResult bind(VkDeviceSize offset = 0)
+        {
+            return vkBindBufferMemory(device, buffer, memory, offset);
+        }
 
-            mSize = size;
+        /**
+        * Setup the default descriptor for this buffer
+        *
+        * @param size (Optional) Size of the memory range of the descriptor
+        * @param offset (Optional) Byte offset from beginning
+        *
+        */
+        void setupDescriptor(VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0)
+        {
+            descriptor.offset = offset;
+            descriptor.buffer = buffer;
+            descriptor.range = size;
+        }
 
-            result = vkCreateBuffer(device->logicalDevice , &bufferCreateInfo, nullptr, &mBuffer);
-            if (VK_SUCCESS == result) {
-                VkMemoryRequirements memoryRequirements;
-                vkGetBufferMemoryRequirements(device->logicalDevice, mBuffer, &memoryRequirements);
+        /**
+        * Copies the specified data to the mapped buffer
+        *
+        * @param data Pointer to the data to copy
+        * @param size Size of the data to copy in machine units
+        *
+        */
+        void copyTo(void* data, VkDeviceSize size)
+        {
+            assert(mapped);
+            memcpy(mapped, data, size);
+        }
 
-                VkMemoryAllocateInfo memoryAllocateInfo;
-                memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-                memoryAllocateInfo.pNext = nullptr;
-                memoryAllocateInfo.allocationSize = memoryRequirements.size;
+        /**
+        * Flush a memory range of the buffer to make it visible to the device
+        *
+        * @note Only required for non-coherent memory
+        *
+        * @param size (Optional) Size of the memory range to flush. Pass VK_WHOLE_SIZE to flush the complete buffer range.
+        * @param offset (Optional) Byte offset from beginning
+        *
+        * @return VkResult of the flush call
+        */
+        VkResult flush(VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0)
+        {
+            VkMappedMemoryRange mappedRange = {};
+            mappedRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+            mappedRange.memory = memory;
+            mappedRange.offset = offset;
+            mappedRange.size = size;
+            return vkFlushMappedMemoryRanges(device, 1, &mappedRange);
+        }
 
-                uint32_t result = 0;
-                for (uint32_t memoryTypeIndex = 0; memoryTypeIndex < VK_MAX_MEMORY_TYPES; ++memoryTypeIndex) {
-                    if (memoryRequirements.memoryTypeBits & (1 << memoryTypeIndex)) {
-                        if ((device->memoryProperties.memoryTypes[memoryTypeIndex].propertyFlags & memoryProperties) == memoryProperties) {
-                            result = memoryTypeIndex;
-                            break;
-                        }
-                    }
-                }
-                memoryAllocateInfo.memoryTypeIndex = result;
+        /**
+        * Invalidate a memory range of the buffer to make it visible to the host
+        *
+        * @note Only required for non-coherent memory
+        *
+        * @param size (Optional) Size of the memory range to invalidate. Pass VK_WHOLE_SIZE to invalidate the complete buffer range.
+        * @param offset (Optional) Byte offset from beginning
+        *
+        * @return VkResult of the invalidate call
+        */
+        VkResult invalidate(VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0)
+        {
+            VkMappedMemoryRange mappedRange = {};
+            mappedRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+            mappedRange.memory = memory;
+            mappedRange.offset = offset;
+            mappedRange.size = size;
+            return vkInvalidateMappedMemoryRanges(device, 1, &mappedRange);
+        }
 
-                result = vkAllocateMemory(device->logicalDevice, &memoryAllocateInfo, nullptr, &mMemory);
-                if (VK_SUCCESS != result) {
-                    vkDestroyBuffer(device->logicalDevice, mBuffer, nullptr);
-                    mBuffer = VK_NULL_HANDLE;
-                    mMemory = VK_NULL_HANDLE;
-                }
-                else {
-                    result = vkBindBufferMemory(device->logicalDevice, mBuffer, mMemory, 0);
-                    if (VK_SUCCESS != result) {
-                        vkDestroyBuffer(device->logicalDevice, mBuffer, nullptr);
-                        vkFreeMemory(device->logicalDevice, mMemory, nullptr);
-                        mBuffer = VK_NULL_HANDLE;
-                        mMemory = VK_NULL_HANDLE;
-                    }
-                }
+        /**
+        * Release all Vulkan resources held by this buffer
+        */
+        void destroy()
+        {
+            if (buffer)
+            {
+                vkDestroyBuffer(device, buffer, nullptr);
+            }
+            if (memory)
+            {
+                vkFreeMemory(device, memory, nullptr);
+            }
+        }
+
+    };
+}
+
+namespace VShader
+{
+    class Shader
+    {
+    public:
+        Shader(VDevice::Device& p_device) : mModule(VK_NULL_HANDLE), device(&p_device) {}
+        ~Shader() { this->Destroy(); }
+
+        bool    LoadFromFile(const char* fileName)
+        {
+            bool result = false;
+
+            std::ifstream file(fileName, std::ios::in | std::ios::binary);
+            if (file) {
+                file.seekg(0, std::ios::end);
+                const size_t fileSize = file.tellg();
+                file.seekg(0, std::ios::beg);
+
+                std::vector<char> bytecode(fileSize);
+                bytecode.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+
+                VkShaderModuleCreateInfo shaderModuleCreateInfo;
+                shaderModuleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+                shaderModuleCreateInfo.pNext = nullptr;
+                shaderModuleCreateInfo.codeSize = bytecode.size();
+                shaderModuleCreateInfo.pCode = reinterpret_cast<uint32_t*>(bytecode.data());
+                shaderModuleCreateInfo.flags = 0;
+
+                const VkResult error = vkCreateShaderModule(device->logicalDevice, &shaderModuleCreateInfo, nullptr, &mModule);
+                result = (VK_SUCCESS == error);
             }
 
             return result;
         }
-
         void Destroy()
         {
-            if (mBuffer) {
-                vkDestroyBuffer(device->logicalDevice, mBuffer, nullptr);
-                mBuffer = VK_NULL_HANDLE;
-            }
-            if (mMemory) {
-                vkFreeMemory(device->logicalDevice, mMemory, nullptr);
-                mMemory = VK_NULL_HANDLE;
-            }
-        }
-
-        void* Map(VkDeviceSize size = UINT64_MAX, VkDeviceSize offset = 0)
-        {
-            void* mem = nullptr;
-
-            if (size > mSize) 
+            if (mModule) 
             {
-                size = mSize;
+                vkDestroyShaderModule(device->logicalDevice, mModule, nullptr);
+                mModule = VK_NULL_HANDLE;
             }
+        }
 
-            VkResult result = vkMapMemory(device->logicalDevice, mMemory, offset, size, 0, &mem);
-            if (VK_SUCCESS != result) 
+        VkPipelineShaderStageCreateInfo GetShaderStage(VkShaderStageFlagBits stage)
+        {
+            return VkPipelineShaderStageCreateInfo
             {
-                mem = nullptr;
-            }
+                /*sType*/ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                /*pNext*/ nullptr,
+                /*flags*/ 0,
+                /*stage*/ stage,
+                /*module*/ mModule,
+                /*pName*/ "main",
+                /*pSpecializationInfo*/ nullptr
+            };
 
-            return mem;
         }
-        void Unmap(Device* device)
-        {
-            vkUnmapMemory(device->logicalDevice, mMemory);
-        }
-
-        bool UploadData(const void* data, VkDeviceSize size, VkDeviceSize offset = 0)
-        {
-            bool result = false;
-
-            void* mem = this->Map(size, offset);
-            if (mem) {
-                std::memcpy(mem, data, size);
-                this->Unmap(device);
-            }
-            return true;
-        }
-
-        // getters
-        VkBuffer GetBuffer() const {
-            return mBuffer;
-        }
-
-        VkDeviceSize GetSize() const {
-            return mSize;
-        }
-
     private:
-        VkBuffer        mBuffer;
-        VkDeviceMemory  mMemory;
-        VkDeviceSize    mSize;
-        Device* device{};
+        VkShaderModule  mModule;
+        VDevice::Device* device;
+
     };
 }
