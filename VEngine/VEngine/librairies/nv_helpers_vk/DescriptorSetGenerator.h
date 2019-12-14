@@ -59,7 +59,7 @@ public:
   VkDescriptorSetLayout GenerateLayout(VkDevice device);
 
   /// Generate a descriptor set from the pool and layout
-  VkDescriptorSet GenerateSet(VkDevice device, VkDescriptorPool pool, VkDescriptorSetLayout layout);
+  static VkDescriptorSet GenerateSet(VkDevice device, VkDescriptorPool pool, VkDescriptorSetLayout layout);
 
   /// Store the information to write into one descriptor set entry: the number of descriptors of the
   /// entry, and where in the descriptor the buffer information should be written
@@ -106,10 +106,10 @@ public:
       descriptorWrite.dstArrayElement      = 0;
       descriptorWrite.descriptorType       = type;
       descriptorWrite.descriptorCount      = static_cast<uint32_t>(info.size());
-      descriptorWrite.pBufferInfo          = VK_NULL_HANDLE;
-      descriptorWrite.pImageInfo           = VK_NULL_HANDLE;
-      descriptorWrite.pTexelBufferView     = VK_NULL_HANDLE;
-      descriptorWrite.pNext                = VK_NULL_HANDLE;
+      descriptorWrite.pBufferInfo          = nullptr;
+      descriptorWrite.pImageInfo           = nullptr;
+      descriptorWrite.pTexelBufferView     = nullptr;
+      descriptorWrite.pNext                = nullptr;
 
       // If the binding point had already been used in a Bind call, replace the binding info
       // Linear search, not so great - hopefully not too many binding points

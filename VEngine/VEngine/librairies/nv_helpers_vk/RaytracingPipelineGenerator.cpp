@@ -128,7 +128,7 @@ uint32_t RayTracingPipelineGenerator::AddHitShaderStage(VkShaderModule        mo
   stageCreate.pSpecializationInfo = nullptr;
 
   m_shaderStages.emplace_back(stageCreate);
-  uint32_t shaderIndex = static_cast<uint32_t>(m_shaderStages.size() - 1);
+  const uint32_t shaderIndex = static_cast<uint32_t>(m_shaderStages.size() - 1);
 
   switch(shaderStage)
   {
@@ -184,7 +184,7 @@ uint32_t RayTracingPipelineGenerator::AddRayGenShaderStage(VkShaderModule module
   stageCreate.pSpecializationInfo = nullptr;
 
   m_shaderStages.emplace_back(stageCreate);
-  uint32_t shaderIndex = static_cast<uint32_t>(m_shaderStages.size() - 1);
+  const uint32_t shaderIndex = static_cast<uint32_t>(m_shaderStages.size() - 1);
 
   VkRayTracingShaderGroupCreateInfoNV groupInfo;
   groupInfo.sType              = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_NV;
@@ -220,7 +220,7 @@ uint32_t RayTracingPipelineGenerator::AddMissShaderStage(VkShaderModule module)
   stageCreate.pSpecializationInfo = nullptr;
 
   m_shaderStages.emplace_back(stageCreate);
-  uint32_t shaderIndex = static_cast<uint32_t>(m_shaderStages.size() - 1);
+  const uint32_t shaderIndex = static_cast<uint32_t>(m_shaderStages.size() - 1);
 
   VkRayTracingShaderGroupCreateInfoNV groupInfo;
   groupInfo.sType              = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_NV;
@@ -282,7 +282,7 @@ void RayTracingPipelineGenerator::Generate(VkDevice              device,
   rayPipelineInfo.pGroups            = m_shaderGroups.data();
   rayPipelineInfo.maxRecursionDepth  = m_maxRecursionDepth;
   rayPipelineInfo.layout             = *layout;
-  rayPipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+  rayPipelineInfo.basePipelineHandle = nullptr;
   rayPipelineInfo.basePipelineIndex  = 0;
 
   code = vkCreateRayTracingPipelinesNV(device, nullptr, 1, &rayPipelineInfo, nullptr, pipeline);

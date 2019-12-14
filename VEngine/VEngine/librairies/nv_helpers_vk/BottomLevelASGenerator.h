@@ -75,7 +75,6 @@ return buffers;
 
 #include "vulkan/vulkan.h"
 
-#include <stdexcept>
 #include <vector>
 
 namespace nv_helpers_vk {

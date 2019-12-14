@@ -142,7 +142,7 @@ VkAccelerationStructureNV BottomLevelASGenerator::CreateAccelerationStructure(Vk
   accelerationStructureCreateInfo.compactedSize = 0;
 
   VkAccelerationStructureNV accelerationStructure;
-  VkResult code = vkCreateAccelerationStructureNV(device, &accelerationStructureCreateInfo, nullptr,
+  const VkResult code = vkCreateAccelerationStructureNV(device, &accelerationStructureCreateInfo, nullptr,
                                                   &accelerationStructure);
   if(code != VK_SUCCESS)
   {
@@ -231,7 +231,7 @@ void BottomLevelASGenerator::Generate(
   {
     throw std::logic_error("Cannot update a bottom-level AS not originally built for updates");
   }
-  if(updateOnly && previousResult == VK_NULL_HANDLE)
+  if(updateOnly && previousResult == nullptr)
   {
     throw std::logic_error("Bottom-level hierarchy update requires the previous hierarchy");
   }
@@ -253,7 +253,7 @@ void BottomLevelASGenerator::Generate(
   bindInfo.deviceIndexCount      = 0;
   bindInfo.pDeviceIndices        = nullptr;
 
-  VkResult code = vkBindAccelerationStructureMemoryNV(device, 1, &bindInfo);
+  const VkResult code = vkBindAccelerationStructureMemoryNV(device, 1, &bindInfo);
 
   if(code != VK_SUCCESS)
   {
@@ -270,9 +270,9 @@ void BottomLevelASGenerator::Generate(
   buildInfo.pGeometries   = m_vertexBuffers.data();
   buildInfo.instanceCount = 0;
 
-  vkCmdBuildAccelerationStructureNV(commandList, &buildInfo, VK_NULL_HANDLE, 0, updateOnly,
+  vkCmdBuildAccelerationStructureNV(commandList, &buildInfo, nullptr, 0, updateOnly,
                                     accelerationStructure,
-                                    updateOnly ? previousResult : VK_NULL_HANDLE, scratchBuffer,
+                                    updateOnly ? previousResult : nullptr, scratchBuffer,
                                     scratchOffset);
 
   // Wait for the builder to complete by setting a barrier on the resulting buffer. This is

@@ -3,7 +3,6 @@
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
-#include <vector>
 #include <Initializers.h>
 
 namespace Tools
@@ -136,7 +135,7 @@ namespace Tools
 
         if (is.is_open())
         {
-            size_t size = is.tellg();
+            const size_t size = is.tellg();
             is.seekg(0, std::ios::beg);
             char* shaderCode = new char[size];
             is.read(shaderCode, size);
@@ -148,9 +147,9 @@ namespace Tools
             VkShaderModuleCreateInfo moduleCreateInfo{};
             moduleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
             moduleCreateInfo.codeSize = size;
-            moduleCreateInfo.pCode = (uint32_t*)shaderCode;
+            moduleCreateInfo.pCode = reinterpret_cast<uint32_t*>(shaderCode);
 
-            vkCreateShaderModule(device, &moduleCreateInfo, NULL, &shaderModule);
+            vkCreateShaderModule(device, &moduleCreateInfo, nullptr, &shaderModule);
 
             delete[] shaderCode;
 
@@ -159,7 +158,7 @@ namespace Tools
         else
         {
             std::cerr << "Error: Could not open shader file \"" << fileName << "\"" << std::endl;
-            return VK_NULL_HANDLE;
+            return nullptr;
         }
     }
 

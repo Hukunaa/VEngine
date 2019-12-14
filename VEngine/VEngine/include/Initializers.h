@@ -2,7 +2,7 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <vector>
-#include <assert.h>
+#include <cassert>
 #include <Device.h>
 #include <fstream>
 
@@ -202,7 +202,7 @@ namespace Initializers
         VkDescriptorType type,
         uint32_t descriptorCount)
     {
-        VkDescriptorPoolSize descriptorPoolSize{};
+        VkDescriptorPoolSize descriptorPoolSize;
         descriptorPoolSize.type = type;
         descriptorPoolSize.descriptorCount = descriptorCount;
         return descriptorPoolSize;
@@ -278,7 +278,7 @@ namespace Initializers
 
     inline VkDescriptorImageInfo descriptorImageInfo(VkSampler sampler, VkImageView imageView, VkImageLayout imageLayout)
     {
-        VkDescriptorImageInfo descriptorImageInfo{};
+        VkDescriptorImageInfo descriptorImageInfo;
         descriptorImageInfo.sampler = sampler;
         descriptorImageInfo.imageView = imageView;
         descriptorImageInfo.imageLayout = imageLayout;
@@ -324,7 +324,7 @@ namespace Initializers
         uint32_t stride,
         VkVertexInputRate inputRate)
     {
-        VkVertexInputBindingDescription vInputBindDescription{};
+        VkVertexInputBindingDescription vInputBindDescription;
         vInputBindDescription.binding = binding;
         vInputBindDescription.stride = stride;
         vInputBindDescription.inputRate = inputRate;
@@ -337,7 +337,7 @@ namespace Initializers
         VkFormat format,
         uint32_t offset)
     {
-        VkVertexInputAttributeDescription vInputAttribDescription{};
+        VkVertexInputAttributeDescription vInputAttribDescription;
         vInputAttribDescription.location = location;
         vInputAttribDescription.binding = binding;
         vInputAttribDescription.format = format;
@@ -486,7 +486,7 @@ namespace Initializers
         pipelineCreateInfo.renderPass = renderPass;
         pipelineCreateInfo.flags = flags;
         pipelineCreateInfo.basePipelineIndex = -1;
-        pipelineCreateInfo.basePipelineHandle = VK_NULL_HANDLE;
+        pipelineCreateInfo.basePipelineHandle = nullptr;
         return pipelineCreateInfo;
     }
 
@@ -495,7 +495,7 @@ namespace Initializers
         VkGraphicsPipelineCreateInfo pipelineCreateInfo{};
         pipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
         pipelineCreateInfo.basePipelineIndex = -1;
-        pipelineCreateInfo.basePipelineHandle = VK_NULL_HANDLE;
+        pipelineCreateInfo.basePipelineHandle = nullptr;
         return pipelineCreateInfo;
     }
 
@@ -515,7 +515,7 @@ namespace Initializers
         uint32_t size,
         uint32_t offset)
     {
-        VkPushConstantRange pushConstantRange{};
+        VkPushConstantRange pushConstantRange;
         pushConstantRange.stageFlags = stageFlags;
         pushConstantRange.offset = offset;
         pushConstantRange.size = size;
@@ -532,7 +532,7 @@ namespace Initializers
     /** @brief Initialize a map entry for a shader specialization constant */
     inline VkSpecializationMapEntry specializationMapEntry(uint32_t constantID, uint32_t offset, size_t size)
     {
-        VkSpecializationMapEntry specializationMapEntry{};
+        VkSpecializationMapEntry specializationMapEntry;
         specializationMapEntry.constantID = constantID;
         specializationMapEntry.offset = offset;
         specializationMapEntry.size = size;
@@ -542,7 +542,7 @@ namespace Initializers
     /** @brief Initialize a specialization constant info structure to pass to a shader stage */
     inline VkSpecializationInfo specializationInfo(uint32_t mapEntryCount, const VkSpecializationMapEntry* mapEntries, size_t dataSize, const void* data)
     {
-        VkSpecializationInfo specializationInfo{};
+        VkSpecializationInfo specializationInfo;
         specializationInfo.mapEntryCount = mapEntryCount;
         specializationInfo.pMapEntries = mapEntries;
         specializationInfo.dataSize = dataSize;
@@ -555,18 +555,18 @@ namespace VBuffer
 {
     struct Buffer
     {
-        VkDevice device;
-        VkBuffer buffer = VK_NULL_HANDLE;
-        VkDeviceMemory memory = VK_NULL_HANDLE;
-        VkDescriptorBufferInfo descriptor;
+        VkDevice device{};
+        VkBuffer buffer = nullptr;
+        VkDeviceMemory memory = nullptr;
+        VkDescriptorBufferInfo descriptor{};
         VkDeviceSize size = 0;
         VkDeviceSize alignment = 0;
         void* mapped = nullptr;
 
         /** @brief Usage flags to be filled by external source at buffer creation (to query at some later point) */
-        VkBufferUsageFlags usageFlags;
+        VkBufferUsageFlags usageFlags{};
         /** @brief Memory propertys flags to be filled by external source at buffer creation (to query at some later point) */
-        VkMemoryPropertyFlags memoryPropertyFlags;
+        VkMemoryPropertyFlags memoryPropertyFlags{};
 
         /**
         * Map a memory range of this buffer. If successful, mapped points to the specified buffer range.
@@ -602,7 +602,7 @@ namespace VBuffer
         *
         * @return VkResult of the bindBufferMemory call
         */
-        VkResult bind(VkDeviceSize offset = 0)
+        VkResult bind(VkDeviceSize offset = 0) const
         {
             return vkBindBufferMemory(device, buffer, memory, offset);
         }
@@ -628,7 +628,7 @@ namespace VBuffer
         * @param size Size of the data to copy in machine units
         *
         */
-        void copyTo(void* data, VkDeviceSize size)
+        void copyTo(void* data, VkDeviceSize size) const
         {
             assert(mapped);
             memcpy(mapped, data, size);
@@ -644,7 +644,7 @@ namespace VBuffer
         *
         * @return VkResult of the flush call
         */
-        VkResult flush(VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0)
+        VkResult flush(VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0) const
         {
             VkMappedMemoryRange mappedRange = {};
             mappedRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
@@ -664,7 +664,7 @@ namespace VBuffer
         *
         * @return VkResult of the invalidate call
         */
-        VkResult invalidate(VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0)
+        VkResult invalidate(VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0) const
         {
             VkMappedMemoryRange mappedRange = {};
             mappedRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
@@ -677,7 +677,7 @@ namespace VBuffer
         /**
         * Release all Vulkan resources held by this buffer
         */
-        void destroy()
+        void destroy() const
         {
             if (buffer)
             {
@@ -697,7 +697,8 @@ namespace VShader
     class Shader
     {
     public:
-        Shader(VDevice::Device& p_device) : mModule(VK_NULL_HANDLE), device(&p_device) {}
+        Shader(const Shader& p_shader) : mModule(p_shader.mModule), device(p_shader.device) {}
+        Shader(VDevice::Device& p_device) : mModule(nullptr), device(&p_device) {}
         ~Shader() { this->Destroy(); }
 
         bool    LoadFromFile(const char* fileName)
@@ -731,11 +732,11 @@ namespace VShader
             if (mModule) 
             {
                 vkDestroyShaderModule(device->logicalDevice, mModule, nullptr);
-                mModule = VK_NULL_HANDLE;
+                mModule = nullptr;
             }
         }
 
-        VkPipelineShaderStageCreateInfo GetShaderStage(VkShaderStageFlagBits stage)
+        VkPipelineShaderStageCreateInfo GetShaderStage(VkShaderStageFlagBits stage) const
         {
             return VkPipelineShaderStageCreateInfo
             {
@@ -752,6 +753,5 @@ namespace VShader
     private:
         VkShaderModule  mModule;
         VDevice::Device* device;
-
     };
 }

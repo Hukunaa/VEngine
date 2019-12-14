@@ -98,16 +98,15 @@ VkDeviceSize ShaderBindingTableGenerator::ComputeSBTSize(
 void ShaderBindingTableGenerator::Generate(VkDevice       device,
                                            VkPipeline     raytracingPipeline,
                                            VkBuffer       sbtBuffer,
-                                           VkDeviceMemory sbtMem)
+                                           VkDeviceMemory sbtMem) const
 {
-
-  uint32_t groupCount = static_cast<uint32_t>(m_rayGen.size())
+    const uint32_t groupCount = static_cast<uint32_t>(m_rayGen.size())
                         + static_cast<uint32_t>(m_miss.size())
                         + static_cast<uint32_t>(m_hitGroup.size());
 
   // Fetch all the shader handles used in the pipeline, so that they can be written in the SBT
   // Note that this could be also done by fetching the handles one by one when writing the SBT entries
-  auto     shaderHandleStorage = new uint8_t[groupCount * m_progIdSize];
+    const auto     shaderHandleStorage = new uint8_t[groupCount * m_progIdSize];
   VkResult code =
       vkGetRayTracingShaderGroupHandlesNV(device, raytracingPipeline, 0, groupCount,
                                           m_progIdSize * groupCount, shaderHandleStorage);
@@ -181,7 +180,7 @@ VkDeviceSize ShaderBindingTableGenerator::GetRayGenEntrySize() const
   return m_rayGenEntrySize;
 }
 
-VkDeviceSize ShaderBindingTableGenerator::GetRayGenOffset() const
+VkDeviceSize ShaderBindingTableGenerator::GetRayGenOffset()
 {
   return 0;
 }
@@ -197,7 +196,7 @@ VkDeviceSize ShaderBindingTableGenerator::GetMissSectionSize() const
 //--------------------------------------------------------------------------------------------------
 //
 // Get the size in bytes of one miss program entry in the SBT
-VkDeviceSize ShaderBindingTableGenerator::GetMissEntrySize()
+VkDeviceSize ShaderBindingTableGenerator::GetMissEntrySize() const
 {
   return m_missEntrySize;
 }
@@ -240,7 +239,7 @@ VkDeviceSize ShaderBindingTableGenerator::CopyShaderData(VkDevice               
                                                          uint8_t*                     outputData,
                                                          const std::vector<SBTEntry>& shaders,
                                                          VkDeviceSize                 entrySize,
-                                                         const uint8_t* shaderHandleStorage)
+                                                         const uint8_t* shaderHandleStorage) const
 {
   uint8_t* pData = outputData;
   for(const auto& shader : shaders)
@@ -265,7 +264,7 @@ VkDeviceSize ShaderBindingTableGenerator::CopyShaderData(VkDevice               
 //
 // Compute the size of the SBT entries for a set of entries, which is determined by their maximum
 // number of parameters
-VkDeviceSize ShaderBindingTableGenerator::GetEntrySize(const std::vector<SBTEntry>& entries)
+VkDeviceSize ShaderBindingTableGenerator::GetEntrySize(const std::vector<SBTEntry>& entries) const
 {
   // Find the maximum number of parameters used by a single entry
   size_t maxArgs = 0;

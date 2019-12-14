@@ -135,7 +135,7 @@ public:
   void Generate(VkDevice       device,
                 VkPipeline     raytracingPipeline,
                 VkBuffer       sbtBuffer,
-                VkDeviceMemory sbtMem);
+                VkDeviceMemory sbtMem) const;
 
   /// Reset the sets of programs and hit groups
   void Reset();
@@ -148,12 +148,12 @@ public:
   /// Get the size in bytes of one ray generation program entry in the SBT
   VkDeviceSize GetRayGenEntrySize() const;
 
-  VkDeviceSize GetRayGenOffset() const;
+  static VkDeviceSize GetRayGenOffset();
 
   /// Get the size in bytes of the SBT section dedicated to miss programs
   VkDeviceSize GetMissSectionSize() const;
   /// Get the size in bytes of one miss program entry in the SBT
-  VkDeviceSize GetMissEntrySize();
+  VkDeviceSize GetMissEntrySize() const;
 
   VkDeviceSize GetMissOffset() const;
 
@@ -183,11 +183,11 @@ private:
                               uint8_t*                     outputData,
                               const std::vector<SBTEntry>& shaders,
                               VkDeviceSize                 entrySize,
-                              const uint8_t*               shaderHandleStorage);
+                              const uint8_t*               shaderHandleStorage) const;
 
   /// Compute the size of the SBT entries for a set of entries, which is determined by the maximum
   /// number of parameters of their root signature
-  VkDeviceSize GetEntrySize(const std::vector<SBTEntry>& entries);
+  VkDeviceSize GetEntrySize(const std::vector<SBTEntry>& entries) const;
 
   /// Ray generation shader entries
   std::vector<SBTEntry> m_rayGen;

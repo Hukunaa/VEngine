@@ -1,5 +1,4 @@
 #include <iostream>
-#include <stdexcept>
 #include <functional>
 #include <cstdlib>
 #include <Context.h>
@@ -36,9 +35,9 @@ private:
         context.createLogicalDevice();
 
         context.initSwapChain();
-        context.createCommandpool();
+        context.CreateCommandPool();
         context.setupSwapChain(WIDTH, HEIGHT, false);
-        context.createCommandbuffers();
+        context.CreateCommandBuffers();
         context.createSynchronizationPrimitives();
         context.setupDepthstencil();
         context.setupRenderPass();
@@ -55,7 +54,11 @@ private:
             glfwPollEvents();
             context.draw();
             if (context.camera.updated)
+            {
+                context.camera.translate(glm::vec3(0, 0, 0.0001f));
+                context.camera.updateViewMatrix();
                 context.updateUniformBuffers();
+            }
         }
     }
 };

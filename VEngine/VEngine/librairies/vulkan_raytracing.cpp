@@ -10,7 +10,7 @@
 
 #include "vulkan/vulkan.h"
 
-static VkDevice s_global_device = VK_NULL_HANDLE;
+static VkDevice s_global_device = nullptr;
 
 VKAPI_ATTR VkResult VKAPI_CALL
                     vkCreateAccelerationStructureNV(VkDevice                                   device,

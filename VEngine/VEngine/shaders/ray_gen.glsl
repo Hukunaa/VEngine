@@ -3,14 +3,30 @@
 
 layout(set = 0, binding = 0) uniform accelerationStructureNV Scene;
 layout(set = 0, binding = 1, rgba8) uniform image2D ResultImage;
+layout(set = 0, binding = 2) uniform UniformData 
+{
+    mat4 viewInverse;
+    mat4 projInverse;
+} ubo;
 
 layout(location = 0) rayPayloadNV vec3 ResultColor;
 
 void main() {
-    const vec2 uv = vec2(gl_LaunchIDNV.xy) / vec2(gl_LaunchSizeNV.xy - 1);
+    //const vec2 uv = vec2(gl_LaunchIDNV.xy) / vec2(gl_LaunchSizeNV.xy - 1);
+    /*vec4 uv = vec4(gl_LaunchIDNV.xy, -1, 1) * ubo.viewInverse * ubo.projInverse;
+    const vec3 origin = vec3(uv.x, uv.y, uv.z);
+    const vec3 direction = vec3(0.0f, 0.0f, 1.0f);*/
 
-    const vec3 origin = vec3(uv.x, 1.0f - uv.y, -1.0f);
-    const vec3 direction = vec3(0.0f, 0.0f, 1.0f);
+    const vec2 pixelCenter = vec2(gl_LaunchIDNV.xy) + vec2(0.5);
+	const vec2 inUV = pixelCenter/vec2(gl_LaunchSizeNV.xy);
+	vec2 d = inUV * 2.0 - 1.0;
+
+	vec4 origin = ubo.viewInverse * vec4(0,0,0,1);
+	vec4 target = ubo.projInverse * vec4(d.x, d.y, 1, 1) ;
+	vec4 direction = ubo.viewInverse*vec4(normalize(target.xyz), 0);
+
+    vec3 forigin = vec3(origin.xyz);
+    vec3 fdir = vec3(direction.xyz);
 
     const uint rayFlags = gl_RayFlagsNoneNV;
     const uint cullMask = 0xFF;
@@ -27,9 +43,9 @@ void main() {
              sbtRecordOffset,
              sbtRecordStride,
              missIndex,
-             origin,
+             forigin,
              tmin,
-             direction,
+             fdir,
              tmax,
              payloadLocation);
 

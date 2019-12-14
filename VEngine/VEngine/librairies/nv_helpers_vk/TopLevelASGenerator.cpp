@@ -92,7 +92,7 @@ VkAccelerationStructureNV TopLevelASGenerator::CreateAccelerationStructure(
   info.instanceCount = static_cast<uint32_t>(
       m_instances.size());  // The descriptor already contains the number of instances
   info.geometryCount = 0;   // Since this is a top-level AS, it does not contain any geometry
-  info.pGeometries   = VK_NULL_HANDLE;
+  info.pGeometries   = nullptr;
 
   VkAccelerationStructureCreateInfoNV accelerationStructureInfo{
       VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_NV};
@@ -102,7 +102,7 @@ VkAccelerationStructureNV TopLevelASGenerator::CreateAccelerationStructure(
   accelerationStructureInfo.compactedSize = 0;
 
   VkAccelerationStructureNV accelerationStructure;
-  VkResult code = vkCreateAccelerationStructureNV(device, &accelerationStructureInfo, nullptr,
+  const VkResult code = vkCreateAccelerationStructureNV(device, &accelerationStructureInfo, nullptr,
                                                   &accelerationStructure);
 
   if(code != VK_SUCCESS)
@@ -201,7 +201,7 @@ void TopLevelASGenerator::Generate(
   for(const auto& inst : m_instances)
   {
     uint64_t accelerationStructureHandle = 0;
-    VkResult code = vkGetAccelerationStructureHandleNV(device, inst.bottomLevelAS, sizeof(uint64_t),
+    const VkResult code = vkGetAccelerationStructureHandleNV(device, inst.bottomLevelAS, sizeof(uint64_t),
                                                        &accelerationStructureHandle);
     if(code != VK_SUCCESS)
     {
@@ -225,7 +225,7 @@ void TopLevelASGenerator::Generate(
   }
 
   // Copy the instance descriptors into the provided mappable buffer
-  VkDeviceSize instancesBufferSize = geometryInstances.size() * sizeof(VkGeometryInstance);
+  const VkDeviceSize instancesBufferSize = geometryInstances.size() * sizeof(VkGeometryInstance);
   void*        data;
   vkMapMemory(device, instancesMem, 0, instancesBufferSize, 0, &data);
   memcpy(data, geometryInstances.data(), instancesBufferSize);
@@ -241,7 +241,7 @@ void TopLevelASGenerator::Generate(
   bindInfo.deviceIndexCount      = 0;
   bindInfo.pDeviceIndices        = nullptr;
 
-  VkResult code = vkBindAccelerationStructureMemoryNV(device, 1, &bindInfo);
+  const VkResult code = vkBindAccelerationStructureMemoryNV(device, 1, &bindInfo);
 
   if(code != VK_SUCCESS)
   {
@@ -260,7 +260,7 @@ void TopLevelASGenerator::Generate(
 
   vkCmdBuildAccelerationStructureNV(commandBuffer, &buildInfo, instancesBuffer, 0, updateOnly,
                                     accelerationStructure,
-                                    updateOnly ? previousResult : VK_NULL_HANDLE, scratchBuffer,
+                                    updateOnly ? previousResult : nullptr, scratchBuffer,
                                     scratchOffset);
 
   // Ensure that the build will be finished before using the AS using a barrier

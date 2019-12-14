@@ -1,5 +1,5 @@
 #pragma once
-#include <math.h>
+#include <cmath>
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
@@ -13,16 +13,19 @@ private:
     float fov;
     float znear, zfar;
 
+public:
+
+    Camera() : fov(60.0f), znear(0.1f), zfar(512.0f){}
+
     void updateViewMatrix()
     {
         glm::mat4 rotM = glm::mat4(1.0f);
-        glm::mat4 transM;
 
         rotM = glm::rotate(rotM, glm::radians(rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
         rotM = glm::rotate(rotM, glm::radians(rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
         rotM = glm::rotate(rotM, glm::radians(rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
 
-        transM = glm::translate(glm::mat4(1.0f), position);
+        glm::mat4 transM = glm::translate(glm::mat4(1.0f), position);
 
         if (type == CameraType::firstperson)
         {
@@ -35,7 +38,7 @@ private:
 
         updated = true;
     };
-public:
+
     enum CameraType { lookat, firstperson };
     CameraType type = CameraType::lookat;
 
@@ -49,8 +52,8 @@ public:
 
     struct
     {
-        glm::mat4 perspective;
-        glm::mat4 view;
+        glm::mat4 perspective{};
+        glm::mat4 view{};
     } matrices;
 
     struct
@@ -61,16 +64,18 @@ public:
         bool down = false;
     } keys;
 
-    bool moving()
+    bool moving() const
     {
         return keys.left || keys.right || keys.up || keys.down;
     }
 
-    float getNearClip() {
+    float getNearClip() const
+    {
         return znear;
     }
 
-    float getFarClip() {
+    float getFarClip() const
+    {
         return zfar;
     }
 
@@ -130,7 +135,7 @@ public:
                 camFront.z = cos(glm::radians(rotation.x)) * cos(glm::radians(rotation.y));
                 camFront = glm::normalize(camFront);
 
-                float moveSpeed = deltaTime * movementSpeed;
+                const float moveSpeed = deltaTime * movementSpeed;
 
                 if (keys.up)
                     position += camFront * moveSpeed;
@@ -166,19 +171,19 @@ public:
             camFront.z = cos(glm::radians(rotation.x)) * cos(glm::radians(rotation.y));
             camFront = glm::normalize(camFront);
 
-            float moveSpeed = deltaTime * movementSpeed * 2.0f;
-            float rotSpeed = deltaTime * rotationSpeed * 50.0f;
+            const float moveSpeed = deltaTime * movementSpeed * 2.0f;
+            const float rotSpeed = deltaTime * rotationSpeed * 50.0f;
 
             // Move
             if (fabsf(axisLeft.y) > deadZone)
             {
-                float pos = (fabsf(axisLeft.y) - deadZone) / range;
+                const float pos = (fabsf(axisLeft.y) - deadZone) / range;
                 position -= camFront * pos * ((axisLeft.y < 0.0f) ? -1.0f : 1.0f) * moveSpeed;
                 retVal = true;
             }
             if (fabsf(axisLeft.x) > deadZone)
             {
-                float pos = (fabsf(axisLeft.x) - deadZone) / range;
+                const float pos = (fabsf(axisLeft.x) - deadZone) / range;
                 position += glm::normalize(glm::cross(camFront, glm::vec3(0.0f, 1.0f, 0.0f))) * pos * ((axisLeft.x < 0.0f) ? -1.0f : 1.0f) * moveSpeed;
                 retVal = true;
             }
@@ -186,13 +191,13 @@ public:
             // Rotate
             if (fabsf(axisRight.x) > deadZone)
             {
-                float pos = (fabsf(axisRight.x) - deadZone) / range;
+                const float pos = (fabsf(axisRight.x) - deadZone) / range;
                 rotation.y += pos * ((axisRight.x < 0.0f) ? -1.0f : 1.0f) * rotSpeed;
                 retVal = true;
             }
             if (fabsf(axisRight.y) > deadZone)
             {
-                float pos = (fabsf(axisRight.y) - deadZone) / range;
+                const float pos = (fabsf(axisRight.y) - deadZone) / range;
                 rotation.x -= pos * ((axisRight.y < 0.0f) ? -1.0f : 1.0f) * rotSpeed;
                 retVal = true;
             }
