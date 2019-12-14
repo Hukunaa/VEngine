@@ -1038,19 +1038,36 @@ VkBool32 VContext::getSupportedDepthFormat(VkPhysicalDevice physicalDevice, VkFo
 }
 void VContext::createScene()
 {
-    // Setup vertices for a single triangle
-    struct Vertex {
-        float pos[3];
-    };
-    std::vector<Vertex> vertices = {
-        { { 0.5f, 0.5f, 0.0f } },
-        { { -0.5f, 0.5f, 0.0f } },
-        { { 0.0f, -0.5f, 0.0f } }
-    };
+    VMesh m_mesh;
+    m_mesh.PushVertex({{1.000000, -1.000000, -1.000000}});
+    m_mesh.PushVertex({{1.000000, -1.000000, 1.000000}});
+    m_mesh.PushVertex({{-1.000000, -1.000000, 1.000000}});
+    m_mesh.PushVertex({{-1.000000, -1.000000, -1.000000}});
+    m_mesh.PushVertex({{1.000000, 1.000000, -0.999999}});
+    m_mesh.PushVertex({{0.999999, 1.000000, 1.000001}});
+    m_mesh.PushVertex({{-1.000000, 1.000000, 1.000000}});
+    m_mesh.PushVertex({{-1.000000, 1.000000, -1.000000}});
+    m_mesh.SetIndices({ 1, 2, 3, 
+                        7, 6, 5,
+                        4, 5, 1,
+                        5, 6, 2,
+                        2, 6, 7,
+                        0, 3, 7,
+                        1, 1, 3,
+                        4, 7, 5,
+                        0, 4, 1,
+                        1, 5, 2,
+                        3, 2, 7,
+                        4, 0, 7});
 
+    /*m_mesh.PushVertex({{ 0.5f, 0.5f, 0.0f }});
+    m_mesh.PushVertex({ { -0.5f, 0.5f, 0.0f } });
+    m_mesh.PushVertex({ { 0.0f, -0.5f, 0.0f } });
+    m_mesh.PushIndex(0);
+    m_mesh.PushIndex(1);
+    m_mesh.PushIndex(2);*/
     // Setup indices
-    std::vector<uint32_t> indices = { 0, 1, 2 };
-    indexCount = static_cast<uint32_t>(indices.size());
+    indexCount = static_cast<uint32_t>(m_mesh.GetIndices().size());
 
     // Create buffers
     // For the sake of simplicity we won't stage the vertex data to the gpu memory
@@ -1059,26 +1076,27 @@ void VContext::createScene()
         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
         &vertexBuffer,
-        vertices.size() * sizeof(Vertex),
-        vertices.data());
+        m_mesh.GetVertices().size() * sizeof(Vertex),
+        (void*)m_mesh.GetVertices().data());
     // Index buffer
     createBuffer(
         VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
         &indexBuffer,
-        indices.size() * sizeof(uint32_t),
-        indices.data());
+        m_mesh.GetIndices().size() * sizeof(uint32_t),
+        (void*)m_mesh.GetIndices().data());
 
     /*
         Create the bottom level acceleration structure containing the actual scene geometry
     */
+
     VkGeometryNV geometry{};
     geometry.sType = VK_STRUCTURE_TYPE_GEOMETRY_NV;
     geometry.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_NV;
     geometry.geometry.triangles.sType = VK_STRUCTURE_TYPE_GEOMETRY_TRIANGLES_NV;
     geometry.geometry.triangles.vertexData = vertexBuffer.buffer;
     geometry.geometry.triangles.vertexOffset = 0;
-    geometry.geometry.triangles.vertexCount = static_cast<uint32_t>(vertices.size());
+    geometry.geometry.triangles.vertexCount = static_cast<uint32_t>(m_mesh.GetVertices().size());
     geometry.geometry.triangles.vertexStride = sizeof(Vertex);
     geometry.geometry.triangles.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
     geometry.geometry.triangles.indexData = indexBuffer.buffer;
@@ -1098,16 +1116,26 @@ void VContext::createScene()
     */
 
     // Single instance with a 3x4 transform matrix for the ray traced triangle
+
+    /*VBuffer::Buffer transform;
+
+    createBuffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, 
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        &transform, 12 * sizeof(float), glm::value_ptr(m_mesh.transform));*/
+
     VBuffer::Buffer instanceBuffer;
 
-    glm::mat3x4 transform = {
+    /*glm::mat3x4 transform = {
         1.0f, 0.0f, 0.0f, 0.0f,
         0.0f, 1.0f, 0.0f, 0.0f,
         0.0f, 0.0f, 1.0f, 0.0f,
-    };
+    };*/
+    m_mesh.pos = {0, 0, 5};
+    m_mesh.rot = {45, 45, 0};
+    m_mesh.UpdateTransform();
 
     GeometryInstance geometryInstance{};
-    geometryInstance.transform = transform;
+    geometryInstance.transform = m_mesh.transform;
     geometryInstance.instanceId = 0;
     geometryInstance.mask = 0xff;
     geometryInstance.instanceOffset = 0;
@@ -1870,8 +1898,8 @@ void VContext::setupRayTracingSupport()
     CHECK_ERROR(vkCreateSemaphore(device.logicalDevice, &semaphoreCreateInfo, nullptr, &semaphores.renderComplete));
 
     camera.type = Camera::lookat;
-    camera.setPosition(glm::vec3(0, 0, -2));
-    camera.setPerspective(60.0f, static_cast<float>(WIDTH) / static_cast<float>(HEIGHT), 0.1f, 512.0f);
+    camera.setPosition(glm::vec3(0, 0, -10));
+    camera.setPerspective(90.0f, static_cast<float>(WIDTH) / static_cast<float>(HEIGHT), 1, 1024);
     camera.setRotation(glm::vec3(0, 0, 0));
 
     // Set up submit info structure

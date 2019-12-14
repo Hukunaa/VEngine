@@ -225,6 +225,7 @@
     <ClInclude Include="include\Context.h" />
     <ClInclude Include="include\Device.h" />
     <ClInclude Include="include\Initializers.h" />
+    <ClInclude Include="include\Mesh.h" />
     <ClInclude Include="include\Tools.h" />
     <ClInclude Include="librairies\nv_helpers_vk\BottomLevelASGenerator.h" />
     <ClInclude Include="librairies\nv_helpers_vk\DescriptorSetGenerator.h" />

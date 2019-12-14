@@ -6,11 +6,13 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 #include <Camera.h>
 #include <Device.h>
 #include <Initializers.h>
 #include <Tools.h>
+#include <Mesh.h>
 
 #pragma region Structures
 struct Semaphore {
