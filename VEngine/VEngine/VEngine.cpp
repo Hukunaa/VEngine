@@ -28,7 +28,7 @@ private:
         glfwInit();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-        context.CreateWinow(WIDTH, HEIGHT, "VEngine");
+        context.CreateWindow(WIDTH, HEIGHT, "VEngine");
 
         context.SetupInstance();
         context.SetupDebugMessenger();
@@ -46,31 +46,6 @@ private:
         context.setupFrameBuffer();
 
         context.setupRayTracingSupport();
-
-
-
-       /* context.initSwapChain();
-        context.setupFrameBuffer();
-        context.createCommandbuffers();
-        context.createSynchronizationPrimitives();
-        context.createImageViews();
-        context.createRenderpass();
-        context.createPipelineCache();*/
-
-        //context.createRenderpass();
-
-        //context.CreateScene();
-        //context.CreateRaytracingPipeline();
-        //context.CreateShaderBindingTable();
-        //context.CreateDescriptorSet();
-        //----------
-        //INSERT BACK HERE
-        //----------
-        /*context.createGraphicPipeline();
-        context.createFramebuffers();
-        context.createSemaphores();*/
-
-        //RASTERIZER PART
     }
 
     void mainLoop() 
@@ -78,7 +53,9 @@ private:
         while (!glfwWindowShouldClose(context.GetWindow())) 
         {
             glfwPollEvents();
-            //context.drawFrame();
+            context.draw();
+            if (context.camera.updated)
+                context.updateUniformBuffers();
         }
     }
 };

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <math.h>
 #include <array>
+
 #ifdef NDEBUG
 const bool enableValidationLayers = false;
 #else
@@ -601,26 +602,26 @@ void VContext::CleanUp()
     device.surface = VK_NULL_HANDLE;
     swapChain.swapChain = VK_NULL_HANDLE;
 
-    /*for (auto framebuffer : swapChainFramebuffers) {
+    for (auto framebuffer : swapChainFramebuffers) {
         vkDestroyFramebuffer(device.logicalDevice, framebuffer, nullptr);
-    }*/
+    }
 
-    //vkDestroyPipeline(device.logicalDevice, graphicsPipeline, nullptr);
-    //vkDestroyPipelineLayout(device.logicalDevice, pipelineLayout, nullptr);
+    vkDestroyPipeline(device.logicalDevice, Rpipeline, nullptr);
+    vkDestroyPipelineLayout(device.logicalDevice, RpipelineLayout, nullptr);
     vkDestroyRenderPass(device.logicalDevice, renderPass, nullptr);
 
-    /*for (auto imageView : swapChainImageViews) 
+    for (auto imageView : swapChainImageViews) 
     {
         vkDestroyImageView(device.logicalDevice, imageView, nullptr);
-    }*/
+    }
 
     vkDestroySwapchainKHR(device.logicalDevice, swapChain.swapChain, nullptr);
     vkDestroyDevice(device.logicalDevice, nullptr);
 
     vkDestroySurfaceKHR(GetInstance(), device.surface , nullptr);
     vkDestroyInstance(GetInstance(), nullptr);
-    vkDestroySemaphore(device.logicalDevice, renderFinishedSemaphore, nullptr);
-    vkDestroySemaphore(device.logicalDevice, imageAvailableSemaphore, nullptr);
+    //vkDestroySemaphore(device.logicalDevice, renderFinishedSemaphore, nullptr);
+    //vkDestroySemaphore(device.logicalDevice, imageAvailableSemaphore, nullptr);
 
     glfwDestroyWindow(GetWindow());
     glfwTerminate();
@@ -2285,6 +2286,24 @@ void VContext::setupRayTracingSupport()
     deviceProps2.pNext = &rayTracingProperties;
     vkGetPhysicalDeviceProperties2(device.physicalDevice, &deviceProps2);
 
+    VkSemaphoreCreateInfo semaphoreCreateInfo = Initializers::semaphoreCreateInfo();
+    // Create a semaphore used to synchronize image presentation
+    // Ensures that the image is displayed before we start submitting new commands to the queu
+    CHECK_ERROR(vkCreateSemaphore(device.logicalDevice, &semaphoreCreateInfo, nullptr, &semaphores.presentComplete));
+    // Create a semaphore used to synchronize command submission
+    // Ensures that the image is not presented until all commands have been sumbitted and executed
+    CHECK_ERROR(vkCreateSemaphore(device.logicalDevice, &semaphoreCreateInfo, nullptr, &semaphores.renderComplete));
+
+    // Set up submit info structure
+    // Semaphores will stay the same during application lifetime
+    // Command buffer submission info is set by each example
+    submitInfo = Initializers::submitInfo();
+    submitInfo.pWaitDstStageMask = &submitPipelineStages;
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = &semaphores.presentComplete;
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = &semaphores.renderComplete;
+
     camera.type = Camera::CameraType::lookat;
     camera.setPerspective(60.0f, (float)WIDTH / (float)HEIGHT, 0.1f, 512.0f);
     camera.setRotation(glm::vec3(0.0f, 0.0f, 0.0f));
@@ -2297,6 +2316,43 @@ void VContext::setupRayTracingSupport()
     createShaderBindingTable();
     createDescriptorSets();
     buildCommandbuffers();
+}
+
+void VContext::prepareFrame()
+{
+    // Acquire the next image from the swap chain
+    VkResult result = acquireNextImage(semaphores.presentComplete, &currentBuffer);
+    // Recreate the swapchain if it's no longer compatible with the surface (OUT_OF_DATE) or no longer optimal for presentation (SUBOPTIMAL)
+    if ((result == VK_ERROR_OUT_OF_DATE_KHR) || (result == VK_SUBOPTIMAL_KHR)) {
+        //windowResize();
+    }
+    else {
+        CHECK_ERROR(result);
+    }
+}
+void VContext::submitFrame()
+{
+    VkResult result = queuePresent(graphicsQueue, currentBuffer, semaphores.renderComplete);
+    if (!((result == VK_SUCCESS) || (result == VK_SUBOPTIMAL_KHR))) {
+        if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+            // Swap chain is no longer compatible with the surface and needs to be recreated
+            //windowResize();
+            return;
+        }
+        else {
+            CHECK_ERROR(result);
+        }
+    }
+    CHECK_ERROR(vkQueueWaitIdle(graphicsQueue));
+}
+
+void VContext::draw()
+{
+    prepareFrame();
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffers[currentBuffer];
+    CHECK_ERROR(vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE));
+    submitFrame();
 }
 
 #pragma endregion

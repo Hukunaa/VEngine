@@ -1,19 +1,25 @@
 #pragma once
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-#include <Initializers.h>
-#include <Tools.h>
-#include <Device.h>
-#include <Camera.h>
-
+#include <iostream>
 #include <cstdint>
 #include <optional>
+#include <vector>
+
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 
-#include <fstream>
-#include <vector>
-#include <iostream>
-#include <map>
+#include <Camera.h>
+#include <Device.h>
+#include <Initializers.h>
+#include <Tools.h>
+
+struct Semaphore
+{
+    // Swap chain image presentation
+    VkSemaphore presentComplete;
+    // Command buffer submission and execution
+    VkSemaphore renderComplete;
+};
 
 struct UniformData 
 {
@@ -32,7 +38,7 @@ struct SwapChain
     VkFormat colorFormat;
     VkColorSpaceKHR colorSpace;
     /** @brief Handle to the current swap chain, required for recreation */
-    VkSwapchainKHR swapChain = VK_NULL_HANDLE;
+    VkSwapchainKHR swapChain = nullptr;
     uint32_t imageCount;
     std::vector<VkImage> images;
     std::vector<SwapChainBuffer> buffers;
@@ -69,7 +75,7 @@ struct Vertex
     glm::vec3 pos;
     glm::vec3 nrm;
     glm::vec3 color;
-    glm::vec2 texCoord;
+    glm::vec2 tex_coord;
 };
 
 struct QueueFamilyIndices 
@@ -77,7 +83,8 @@ struct QueueFamilyIndices
     std::optional<uint32_t> graphicsFamily;
     std::optional<uint32_t> presentFamily;
 
-    bool isComplete() {
+    bool isComplete() const
+    {
         return graphicsFamily.has_value() && presentFamily.has_value();
     }
 };
@@ -104,7 +111,7 @@ public:
     VContext() = default;
     ~VContext() = default;
 
-    void CreateWinow(int width, int height, const char* name)
+    void CreateWindow(int width, int height, const char* name)
     {
         window = glfwCreateWindow(width, height, name, nullptr, nullptr);
     }
@@ -149,7 +156,7 @@ public:
     static std::vector<char> readFile(const std::string& filename);
 
 
-    GLFWwindow* GetWindow() { return window; }
+    GLFWwindow* GetWindow() const { return window; }
 
     std::vector<const char*> validationLayers = { "VK_LAYER_KHRONOS_validation" };
     const std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME, 
@@ -203,6 +210,10 @@ public:
     VkPipelineCache pipelineCache;
     UniformData uniformData;
     Camera camera;
+    uint32_t currentBuffer = 0;
+    Semaphore semaphores;
+    VkSubmitInfo submitInfo;
+    VkPipelineStageFlags submitPipelineStages = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
     struct
     {
@@ -272,6 +283,11 @@ public:
     void buildCommandbuffers();
 
     void setupRayTracingSupport();
+    void prepareFrame();
+
+    void submitFrame();
+
+    void draw();
 
     // Function pointers
    /* PFN_vkGetPhysicalDeviceSurfaceSupportKHR fpGetPhysicalDeviceSurfaceSupportKHR;
