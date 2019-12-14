@@ -5,15 +5,15 @@
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
-#define WIDTH 800
-#define HEIGHT 800
-class HelloTriangleApplication 
-{
+#define WIDTH 1280
+#define HEIGHT 720
+
+class HelloTriangleApplication {
 public:
 
     VContext context;
 
-    void run() 
+    void run()
     {
         initVulkan();
         mainLoop();
@@ -22,7 +22,7 @@ public:
 
 private:
 
-    void initVulkan() 
+    void initVulkan()
     {
         glfwInit();
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -47,9 +47,9 @@ private:
         context.setupRayTracingSupport();
     }
 
-    void mainLoop() 
+    void mainLoop()
     {
-        while (!glfwWindowShouldClose(context.GetWindow())) 
+        while (!glfwWindowShouldClose(context.GetWindow()))
         {
             glfwPollEvents();
             context.draw();
@@ -63,13 +63,16 @@ private:
     }
 };
 
-int main() {
+int main()
+{
     HelloTriangleApplication app;
 
-    try {
+    try
+    {
         app.run();
     }
-    catch (const std::exception & e) {
+    catch (const std::exception& e)
+    {
         std::cerr << e.what() << std::endl;
         return EXIT_FAILURE;
     }
