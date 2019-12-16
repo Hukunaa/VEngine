@@ -49,9 +49,15 @@ private:
 
     void mainLoop()
     {
+        float sinus = 0;
+
         while (!glfwWindowShouldClose(context.GetWindow()))
         {
             glfwPollEvents();
+            //context.m_mesh.pos = {sinus, 0, 5};
+            context.m_mesh.Rotate({0.1f, 0.1f, 0.1f});
+
+            //KNOWN MEMORY LEAK HERE
             context.UpdateMesh(context.m_mesh);
             context.draw();
             if (context.camera.updated)
@@ -61,6 +67,7 @@ private:
                 context.camera.updateViewMatrix();
                 context.updateUniformBuffers();
             }
+            sinus += 0.01f;
         }
     }
 };

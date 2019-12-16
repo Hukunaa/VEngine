@@ -171,10 +171,12 @@ void VContext::UpdateMesh(VMesh& p_mesh)
                                             newToplevelAcc.accelerationStructure, 
                                             VK_COPY_ACCELERATION_STRUCTURE_MODE_CLONE_NV);
 
-
-    flushCommandBuffer(cmdBuffer, graphicsQueue);
+    flushCommandBuffer(cmdBuffer, graphicsQueue, true);
+    vkFreeMemory(device.logicalDevice, newToplevelAcc.memory, nullptr);
+    vkDestroyAccelerationStructureNV(device.logicalDevice, newToplevelAcc.accelerationStructure, nullptr);
     scratchBuffer.destroy();
     p_mesh.meshBuffer.destroy();
+    
 
 }
 void VContext::SelectGPU()
@@ -997,7 +999,6 @@ void VContext::CreateTopLevelAccelerationStructure(AccelerationStructure& accele
     memoryAllocateInfo.allocationSize = memoryRequirements2.memoryRequirements.size;
     memoryAllocateInfo.memoryTypeIndex = getMemoryType(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     vkAllocateMemory(device.logicalDevice, &memoryAllocateInfo, nullptr, &accelerationStruct.memory);
-
     VkBindAccelerationStructureMemoryInfoNV accelerationStructureMemoryInfo{};
     accelerationStructureMemoryInfo.sType = VK_STRUCTURE_TYPE_BIND_ACCELERATION_STRUCTURE_MEMORY_INFO_NV;
     accelerationStructureMemoryInfo.accelerationStructure = accelerationStruct.accelerationStructure;

@@ -687,6 +687,10 @@ namespace VBuffer
             {
                 vkFreeMemory(device, memory, nullptr);
             }
+            if(mapped)
+            {
+                delete mapped;
+            }
         }
 
     };

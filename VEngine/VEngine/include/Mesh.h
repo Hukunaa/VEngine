@@ -37,6 +37,18 @@ public:
     void PushIndex(const uint32_t p_index){ indices.push_back(p_index); }
     void SetIndices(std::vector<uint32_t> p_indices) {indices = p_indices;}
 
+    void Translate(glm::vec3 tr)
+    {
+        pos += tr;
+        UpdateTransform();
+    }
+
+    void Rotate(glm::vec3 rotation)
+    {
+        rot += rotation;
+        UpdateTransform();
+    }
+
     void UpdateMesh();
     void UpdateTransform()
     {
