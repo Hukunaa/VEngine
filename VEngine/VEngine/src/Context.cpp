@@ -111,12 +111,12 @@ void VContext::UpdateMesh(VMesh& p_mesh)
     VkAccelerationStructureInfoNV buildInfo{};
     buildInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
     buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_NV;
+    buildInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_NV;
     buildInfo.pGeometries = nullptr;
     buildInfo.geometryCount = 0;
     buildInfo.instanceCount = 1;
 
     p_mesh.UpdateTransform();
-    p_mesh.meshBuffer.destroy();
 
     createBuffer(VK_BUFFER_USAGE_RAY_TRACING_BIT_NV, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
         &p_mesh.meshBuffer,
@@ -131,7 +131,7 @@ void VContext::UpdateMesh(VMesh& p_mesh)
     memoryRequirementsInfo.accelerationStructure = newToplevelAcc.accelerationStructure;
     vkGetAccelerationStructureMemoryRequirementsNV(device.logicalDevice, &memoryRequirementsInfo, &memReqTopLevelAS);
 
-    const VkDeviceSize scratchBufferSize = memReqTopLevelAS.memoryRequirements.size;
+    const VkDeviceSize scratchBufferSize = std::max( memReqBottomLevelAS.memoryRequirements.size, memReqTopLevelAS.memoryRequirements.size);
 
     VBuffer::Buffer scratchBuffer;
     createBuffer(
@@ -152,9 +152,8 @@ void VContext::UpdateMesh(VMesh& p_mesh)
     newToplevelAcc.accelerationStructure,
     scratchBuffer.buffer,
     0);*/
-    flushCommandBuffer(cmdBuffer, graphicsQueue);
 
-    /*VkMemoryBarrier memoryBarrier = Initializers::memoryBarrier();
+    VkMemoryBarrier memoryBarrier = Initializers::memoryBarrier();
     memoryBarrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_NV | VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_NV;
     memoryBarrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_NV | VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_NV;
     vkCmdPipelineBarrier(cmdBuffer, 
@@ -166,7 +165,9 @@ void VContext::UpdateMesh(VMesh& p_mesh)
         0, 
         nullptr, 
         0, 
-        nullptr);*/
+        nullptr);
+
+    flushCommandBuffer(cmdBuffer, graphicsQueue);
 }
 void VContext::SelectGPU()
 {
@@ -1223,7 +1224,6 @@ void VContext::createScene()
     VkAccelerationStructureInfoNV buildInfo{};
     buildInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
     buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_NV;
-    buildInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_NV;
     buildInfo.geometryCount = 1;
     buildInfo.pGeometries = &geometry;
 
@@ -1247,7 +1247,7 @@ void VContext::createScene()
         Build top-level acceleration structure
     */
     buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_NV;
-    //buildInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_NV;
+    buildInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_NV;
     buildInfo.pGeometries = nullptr;
     buildInfo.geometryCount = 0;
     buildInfo.instanceCount = 1;
@@ -1268,7 +1268,7 @@ void VContext::createScene()
     flushCommandBuffer(cmdBuffer, graphicsQueue);
 
     scratchBuffer.destroy();
-    //instanceBuffer.destroy();
+    m_mesh.meshBuffer.destroy();
 }
 
 

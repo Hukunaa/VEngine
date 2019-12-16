@@ -45,6 +45,7 @@ private:
         context.setupFrameBuffer();
 
         context.setupRayTracingSupport();
+        context.UpdateMesh(context.m_mesh);
     }
 
     void mainLoop()
