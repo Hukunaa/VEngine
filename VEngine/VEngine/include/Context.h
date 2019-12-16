@@ -44,15 +44,6 @@ struct SwapChain {
     uint32_t queueNodeIndex = 5000000;
 };
 
-struct GeometryInstance {
-    glm::mat3x4 transform;
-    uint32_t instanceId : 24;
-    uint32_t mask : 8;
-    uint32_t instanceOffset : 24;
-    uint32_t flags : 8;
-    uint64_t accelerationStructureHandle;
-};
-
 struct AccelerationStructure {
     VkDeviceMemory memory;
     VkAccelerationStructureNV accelerationStructure;
@@ -101,7 +92,7 @@ public:
     void setupSwapChain(uint32_t width, uint32_t height, bool vsync = false);
     void flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue, bool free = true) const;
     void CreateBottomLevelAccelerationStructure(const VkGeometryNV* geometries);
-    void CreateTopLevelAccelerationStructure();
+    void CreateTopLevelAccelerationStructure(AccelerationStructure& accelerationStruct);
     void CreateStorageImage();
     void createScene();
     void createRayTracingPipeline();
@@ -162,6 +153,7 @@ public:
     bool CheckValidationLayerSupport();
     bool IsDeviceSuitable(VkPhysicalDevice device);
     bool checkDeviceExtensionSupport(VkPhysicalDevice device) const;
+    void UpdateMesh(VMesh& p_mesh);
 
 #pragma endregion
 #pragma region VkResult Methods
@@ -169,7 +161,8 @@ public:
     VkResult queuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore waitSemaphore) const;
     VkResult createBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize size, VkBuffer* buffer, VkDeviceMemory* memory, void* data = nullptr) const;
     VkResult createBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VBuffer::Buffer* buffer, VkDeviceSize size, void* data = nullptr) const;
-#pragma endregion 
+#pragma endregion
+
 #pragma region Getter Setters
     static std::vector<const char*> GetRequieredExtensions();
     const std::vector<const char*>& GetValidationLayers()
@@ -258,8 +251,10 @@ public:
     Semaphore semaphores{};
     VkSubmitInfo submitInfo{};
     VkPipelineStageFlags submitPipelineStages = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    Camera camera;
 
+    VkMemoryRequirements2 memReqBottomLevelAS;
+    Camera camera;
+    VMesh m_mesh;
     struct
     {
         VkImage image;

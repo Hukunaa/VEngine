@@ -102,7 +102,72 @@ bool VContext::checkDeviceExtensionSupport(VkPhysicalDevice device) const
 
     return requiredExtensions.empty();
 }
+void VContext::UpdateMesh(VMesh& p_mesh)
+{
+    //Set new build info for Acceleration Structure
+    AccelerationStructure newToplevelAcc;
+    CreateTopLevelAccelerationStructure(newToplevelAcc);
 
+    VkAccelerationStructureInfoNV buildInfo{};
+    buildInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
+    buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_NV;
+    buildInfo.pGeometries = nullptr;
+    buildInfo.geometryCount = 0;
+    buildInfo.instanceCount = 1;
+
+    p_mesh.UpdateTransform();
+    p_mesh.meshBuffer.destroy();
+
+    createBuffer(VK_BUFFER_USAGE_RAY_TRACING_BIT_NV, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        &p_mesh.meshBuffer,
+        sizeof(GeometryInstance),
+        &p_mesh.meshGeometry);
+
+    VkAccelerationStructureMemoryRequirementsInfoNV memoryRequirementsInfo{};
+    memoryRequirementsInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NV;
+    memoryRequirementsInfo.type = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_UPDATE_SCRATCH_NV;
+
+    VkMemoryRequirements2 memReqTopLevelAS;
+    memoryRequirementsInfo.accelerationStructure = newToplevelAcc.accelerationStructure;
+    vkGetAccelerationStructureMemoryRequirementsNV(device.logicalDevice, &memoryRequirementsInfo, &memReqTopLevelAS);
+
+    const VkDeviceSize scratchBufferSize = memReqTopLevelAS.memoryRequirements.size;
+
+    VBuffer::Buffer scratchBuffer;
+    createBuffer(
+        VK_BUFFER_USAGE_RAY_TRACING_BIT_NV,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        &scratchBuffer,
+        scratchBufferSize);
+
+    VkCommandBuffer cmdBuffer = createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+
+    /*vkCmdBuildAccelerationStructureNV(
+    cmdBuffer,
+    &buildInfo,
+    p_mesh.meshBuffer.buffer,
+    0,
+    VK_TRUE,
+    topLevelAS.accelerationStructure,
+    newToplevelAcc.accelerationStructure,
+    scratchBuffer.buffer,
+    0);*/
+    flushCommandBuffer(cmdBuffer, graphicsQueue);
+
+    /*VkMemoryBarrier memoryBarrier = Initializers::memoryBarrier();
+    memoryBarrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_NV | VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_NV;
+    memoryBarrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_NV | VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_NV;
+    vkCmdPipelineBarrier(cmdBuffer, 
+        VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV, 
+        VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV, 
+        0, 
+        1, 
+        &memoryBarrier, 
+        0, 
+        nullptr, 
+        0, 
+        nullptr);*/
+}
 void VContext::SelectGPU()
 {
     device.physicalDevice = nullptr;
@@ -868,6 +933,7 @@ void VContext::CreateBottomLevelAccelerationStructure(const VkGeometryNV* geomet
     accelerationStructureInfo.instanceCount = 0;
     accelerationStructureInfo.geometryCount = 1;
     accelerationStructureInfo.pGeometries = geometries;
+    
     VkAccelerationStructureCreateInfoNV accelerationStructureCI{};
     accelerationStructureCI.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_NV;
     accelerationStructureCI.info = accelerationStructureInfo;
@@ -896,23 +962,24 @@ void VContext::CreateBottomLevelAccelerationStructure(const VkGeometryNV* geomet
     vkGetAccelerationStructureHandleNV(device.logicalDevice, bottomLevelAS.accelerationStructure, sizeof(uint64_t), &bottomLevelAS.handle);
 }
 //VALID
-void VContext::CreateTopLevelAccelerationStructure()
+void VContext::CreateTopLevelAccelerationStructure(AccelerationStructure& accelerationStruct)
 {
     VkAccelerationStructureInfoNV accelerationStructureInfo{};
     accelerationStructureInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
     accelerationStructureInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_NV;
+    accelerationStructureInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_NV;
     accelerationStructureInfo.instanceCount = 1;
     accelerationStructureInfo.geometryCount = 0;
 
     VkAccelerationStructureCreateInfoNV accelerationStructureCI{};
     accelerationStructureCI.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_NV;
     accelerationStructureCI.info = accelerationStructureInfo;
-    vkCreateAccelerationStructureNV(device.logicalDevice, &accelerationStructureCI, nullptr, &topLevelAS.accelerationStructure);
+    vkCreateAccelerationStructureNV(device.logicalDevice, &accelerationStructureCI, nullptr, &accelerationStruct.accelerationStructure);
 
     VkAccelerationStructureMemoryRequirementsInfoNV memoryRequirementsInfo{};
     memoryRequirementsInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NV;
     memoryRequirementsInfo.type = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_OBJECT_NV;
-    memoryRequirementsInfo.accelerationStructure = topLevelAS.accelerationStructure;
+    memoryRequirementsInfo.accelerationStructure = accelerationStruct.accelerationStructure;
 
     VkMemoryRequirements2 memoryRequirements2{};
     vkGetAccelerationStructureMemoryRequirementsNV(device.logicalDevice, &memoryRequirementsInfo, &memoryRequirements2);
@@ -920,15 +987,15 @@ void VContext::CreateTopLevelAccelerationStructure()
     VkMemoryAllocateInfo memoryAllocateInfo = Initializers::memoryAllocateInfo();
     memoryAllocateInfo.allocationSize = memoryRequirements2.memoryRequirements.size;
     memoryAllocateInfo.memoryTypeIndex = getMemoryType(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    vkAllocateMemory(device.logicalDevice, &memoryAllocateInfo, nullptr, &topLevelAS.memory);
+    vkAllocateMemory(device.logicalDevice, &memoryAllocateInfo, nullptr, &accelerationStruct.memory);
 
     VkBindAccelerationStructureMemoryInfoNV accelerationStructureMemoryInfo{};
     accelerationStructureMemoryInfo.sType = VK_STRUCTURE_TYPE_BIND_ACCELERATION_STRUCTURE_MEMORY_INFO_NV;
-    accelerationStructureMemoryInfo.accelerationStructure = topLevelAS.accelerationStructure;
-    accelerationStructureMemoryInfo.memory = topLevelAS.memory;
+    accelerationStructureMemoryInfo.accelerationStructure = accelerationStruct.accelerationStructure;
+    accelerationStructureMemoryInfo.memory = accelerationStruct.memory;
     vkBindAccelerationStructureMemoryNV(device.logicalDevice, 1, &accelerationStructureMemoryInfo);
 
-    vkGetAccelerationStructureHandleNV(device.logicalDevice, topLevelAS.accelerationStructure, sizeof(uint64_t), &topLevelAS.handle);
+    vkGetAccelerationStructureHandleNV(device.logicalDevice, accelerationStruct.accelerationStructure, sizeof(uint64_t), &accelerationStruct.handle);
 }
 //VALID
 void VContext::CreateStorageImage()
@@ -1038,7 +1105,6 @@ VkBool32 VContext::getSupportedDepthFormat(VkPhysicalDevice physicalDevice, VkFo
 }
 void VContext::createScene()
 {
-    VMesh m_mesh;
     m_mesh.PushVertex({{1.000000, -1.000000, -1.000000}});
     m_mesh.PushVertex({{1.000000, -1.000000, 1.000000}});
     m_mesh.PushVertex({{-1.000000, -1.000000, 1.000000}});
@@ -1060,12 +1126,6 @@ void VContext::createScene()
                         3, 2, 7,
                         4, 0, 7});
 
-    /*m_mesh.PushVertex({{ 0.5f, 0.5f, 0.0f }});
-    m_mesh.PushVertex({ { -0.5f, 0.5f, 0.0f } });
-    m_mesh.PushVertex({ { 0.0f, -0.5f, 0.0f } });
-    m_mesh.PushIndex(0);
-    m_mesh.PushIndex(1);
-    m_mesh.PushIndex(2);*/
     // Setup indices
     indexCount = static_cast<uint32_t>(m_mesh.GetIndices().size());
 
@@ -1115,39 +1175,20 @@ void VContext::createScene()
         Create the top-level acceleration structure that contains geometry instance information
     */
 
-    // Single instance with a 3x4 transform matrix for the ray traced triangle
-
-    /*VBuffer::Buffer transform;
-
-    createBuffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, 
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        &transform, 12 * sizeof(float), glm::value_ptr(m_mesh.transform));*/
-
-    VBuffer::Buffer instanceBuffer;
-
-    /*glm::mat3x4 transform = {
-        1.0f, 0.0f, 0.0f, 0.0f,
-        0.0f, 1.0f, 0.0f, 0.0f,
-        0.0f, 0.0f, 1.0f, 0.0f,
-    };*/
+    //Setup mesh transform and acceleration structure reference in mesh
     m_mesh.pos = {0, 0, 5};
     m_mesh.rot = {45, 45, 0};
-    m_mesh.UpdateTransform();
 
-    GeometryInstance geometryInstance{};
-    geometryInstance.transform = m_mesh.transform;
-    geometryInstance.instanceId = 0;
-    geometryInstance.mask = 0xff;
-    geometryInstance.instanceOffset = 0;
-    geometryInstance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_CULL_DISABLE_BIT_NV;
-    geometryInstance.accelerationStructureHandle = bottomLevelAS.handle;
+    m_mesh.UpdateTransform();
+    m_mesh.meshGeometry.accelerationStructureHandle = bottomLevelAS.handle;
+
 
     createBuffer(VK_BUFFER_USAGE_RAY_TRACING_BIT_NV, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        &instanceBuffer,
+        &m_mesh.meshBuffer,
         sizeof(GeometryInstance),
-        &geometryInstance);
+        &m_mesh.meshGeometry);
 
-    CreateTopLevelAccelerationStructure();
+    CreateTopLevelAccelerationStructure(topLevelAS);
 
     /*
         Build the acceleration structure
@@ -1158,7 +1199,6 @@ void VContext::createScene()
     memoryRequirementsInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NV;
     memoryRequirementsInfo.type = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_BUILD_SCRATCH_NV;
 
-    VkMemoryRequirements2 memReqBottomLevelAS;
     memoryRequirementsInfo.accelerationStructure = bottomLevelAS.accelerationStructure;
     vkGetAccelerationStructureMemoryRequirementsNV(device.logicalDevice, &memoryRequirementsInfo, &memReqBottomLevelAS);
 
@@ -1183,6 +1223,7 @@ void VContext::createScene()
     VkAccelerationStructureInfoNV buildInfo{};
     buildInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
     buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_NV;
+    buildInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_NV;
     buildInfo.geometryCount = 1;
     buildInfo.pGeometries = &geometry;
 
@@ -1206,6 +1247,7 @@ void VContext::createScene()
         Build top-level acceleration structure
     */
     buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_NV;
+    //buildInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_NV;
     buildInfo.pGeometries = nullptr;
     buildInfo.geometryCount = 0;
     buildInfo.instanceCount = 1;
@@ -1213,7 +1255,7 @@ void VContext::createScene()
     vkCmdBuildAccelerationStructureNV(
         cmdBuffer,
         &buildInfo,
-        instanceBuffer.buffer,
+        m_mesh.meshBuffer.buffer,
         0,
         VK_FALSE,
         topLevelAS.accelerationStructure,
@@ -1226,7 +1268,7 @@ void VContext::createScene()
     flushCommandBuffer(cmdBuffer, graphicsQueue);
 
     scratchBuffer.destroy();
-    instanceBuffer.destroy();
+    //instanceBuffer.destroy();
 }
 
 
