@@ -125,7 +125,7 @@ void VContext::UpdateMesh(VMesh& p_mesh)
 
     VkAccelerationStructureMemoryRequirementsInfoNV memoryRequirementsInfo{};
     memoryRequirementsInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NV;
-    memoryRequirementsInfo.type = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_UPDATE_SCRATCH_NV;
+    memoryRequirementsInfo.type = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_BUILD_SCRATCH_NV;
 
     VkMemoryRequirements2 memReqTopLevelAS;
     memoryRequirementsInfo.accelerationStructure = newToplevelAcc.accelerationStructure;
@@ -142,16 +142,16 @@ void VContext::UpdateMesh(VMesh& p_mesh)
 
     VkCommandBuffer cmdBuffer = createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 
-    /*vkCmdBuildAccelerationStructureNV(
+    vkCmdBuildAccelerationStructureNV(
     cmdBuffer,
     &buildInfo,
     p_mesh.meshBuffer.buffer,
     0,
-    VK_TRUE,
-    topLevelAS.accelerationStructure,
+    VK_FALSE,
     newToplevelAcc.accelerationStructure,
+    nullptr,
     scratchBuffer.buffer,
-    0);*/
+    0);
 
     VkMemoryBarrier memoryBarrier = Initializers::memoryBarrier();
     memoryBarrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_NV | VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_NV;
@@ -167,7 +167,15 @@ void VContext::UpdateMesh(VMesh& p_mesh)
         0, 
         nullptr);
 
+    vkCmdCopyAccelerationStructureNV(cmdBuffer, topLevelAS.accelerationStructure, 
+                                            newToplevelAcc.accelerationStructure, 
+                                            VK_COPY_ACCELERATION_STRUCTURE_MODE_CLONE_NV);
+
+
     flushCommandBuffer(cmdBuffer, graphicsQueue);
+    scratchBuffer.destroy();
+    p_mesh.meshBuffer.destroy();
+
 }
 void VContext::SelectGPU()
 {

@@ -45,7 +45,6 @@ private:
         context.setupFrameBuffer();
 
         context.setupRayTracingSupport();
-        context.UpdateMesh(context.m_mesh);
     }
 
     void mainLoop()
@@ -53,11 +52,12 @@ private:
         while (!glfwWindowShouldClose(context.GetWindow()))
         {
             glfwPollEvents();
+            context.UpdateMesh(context.m_mesh);
             context.draw();
             if (context.camera.updated)
             {
-                context.camera.translate(glm::vec3(0.001, 0, 0));
-                context.camera.rotate({0, -0.01, 0});
+                //context.camera.translate(glm::vec3(0.001, 0, 0));
+                //context.camera.rotate({0, -0.01, 0});
                 context.camera.updateViewMatrix();
                 context.updateUniformBuffers();
             }
