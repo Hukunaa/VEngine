@@ -1,84 +1,22 @@
 #include <iostream>
 #include <functional>
 #include <cstdlib>
-#include <Context.h>
+#include <Game.h>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 #define WIDTH 1280
 #define HEIGHT 720
 
-class HelloTriangleApplication {
-public:
-
-    VContext context;
-
-    void run()
-    {
-        initVulkan();
-        mainLoop();
-        context.CleanUp();
-    }
-
-private:
-
-    void initVulkan()
-    {
-        glfwInit();
-        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-        context.CreateWindow(WIDTH, HEIGHT, "VEngine");
-
-        context.SetupInstance();
-        context.SetupDebugMessenger();
-        context.SelectGPU();
-        context.createLogicalDevice();
-
-        context.initSwapChain();
-        context.CreateCommandPool();
-        context.setupSwapChain(WIDTH, HEIGHT, false);
-        context.CreateCommandBuffers();
-        context.createSynchronizationPrimitives();
-        context.setupDepthstencil();
-        context.setupRenderPass();
-        context.createPipelineCache();
-        context.setupFrameBuffer();
-
-        context.setupRayTracingSupport();
-    }
-
-    void mainLoop()
-    {
-        float sinus = 0;
-
-        while (!glfwWindowShouldClose(context.GetWindow()))
-        {
-            glfwPollEvents();
-            //context.m_mesh.pos = {sinus, 0, 5};
-            context.m_mesh.Rotate({0.1f, 0.1f, 0.1f});
-
-            //KNOWN MEMORY LEAK HERE
-            context.UpdateMesh(context.m_mesh);
-            context.draw();
-            if (context.camera.updated)
-            {
-                //context.camera.translate(glm::vec3(0.001, 0, 0));
-                //context.camera.rotate({0, -0.01, 0});
-                context.camera.updateViewMatrix();
-                context.updateUniformBuffers();
-            }
-            sinus += 0.01f;
-        }
-    }
-};
 
 int main()
 {
-    HelloTriangleApplication app;
+    Game game(WIDTH, HEIGHT);
 
     try
     {
-        app.run();
+        game.InitAPI();
+        game.SetupGame();
     }
     catch (const std::exception& e)
     {

@@ -116,7 +116,7 @@ void VContext::UpdateMesh(VMesh& p_mesh)
     buildInfo.geometryCount = 0;
     buildInfo.instanceCount = 1;
 
-    p_mesh.UpdateTransform();
+    //p_mesh.UpdateTransform();
 
     createBuffer(VK_BUFFER_USAGE_RAY_TRACING_BIT_NV, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
         &p_mesh.meshBuffer,
@@ -979,7 +979,7 @@ void VContext::CreateTopLevelAccelerationStructure(AccelerationStructure& accele
     accelerationStructureInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
     accelerationStructureInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_NV;
     accelerationStructureInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_NV;
-    accelerationStructureInfo.instanceCount = 1;
+    accelerationStructureInfo.instanceCount = 2;
     accelerationStructureInfo.geometryCount = 0;
 
     VkAccelerationStructureCreateInfoNV accelerationStructureCI{};
@@ -1113,31 +1113,11 @@ VkBool32 VContext::getSupportedDepthFormat(VkPhysicalDevice physicalDevice, VkFo
 
     return false;
 }
-void VContext::createScene()
+void VContext::createScene(std::vector<VObject>& objects)
 {
-    m_mesh.PushVertex({{1.000000, -1.000000, -1.000000}});
-    m_mesh.PushVertex({{1.000000, -1.000000, 1.000000}});
-    m_mesh.PushVertex({{-1.000000, -1.000000, 1.000000}});
-    m_mesh.PushVertex({{-1.000000, -1.000000, -1.000000}});
-    m_mesh.PushVertex({{1.000000, 1.000000, -0.999999}});
-    m_mesh.PushVertex({{0.999999, 1.000000, 1.000001}});
-    m_mesh.PushVertex({{-1.000000, 1.000000, 1.000000}});
-    m_mesh.PushVertex({{-1.000000, 1.000000, -1.000000}});
-    m_mesh.SetIndices({ 1, 2, 3, 
-                        7, 6, 5,
-                        4, 5, 1,
-                        5, 6, 2,
-                        2, 6, 7,
-                        0, 3, 7,
-                        1, 1, 3,
-                        4, 7, 5,
-                        0, 4, 1,
-                        1, 5, 2,
-                        3, 2, 7,
-                        4, 0, 7});
 
     // Setup indices
-    indexCount = static_cast<uint32_t>(m_mesh.GetIndices().size());
+    indexCount = static_cast<uint32_t>(objects[0].m_mesh.GetIndices().size());
 
     // Create buffers
     // For the sake of simplicity we won't stage the vertex data to the gpu memory
@@ -1146,15 +1126,15 @@ void VContext::createScene()
         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
         &vertexBuffer,
-        m_mesh.GetVertices().size() * sizeof(Vertex),
-        (void*)m_mesh.GetVertices().data());
+        objects[0].m_mesh.GetVertices().size() * sizeof(Vertex),
+        (void*)objects[0].m_mesh.GetVertices().data());
     // Index buffer
     createBuffer(
         VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
         &indexBuffer,
-        m_mesh.GetIndices().size() * sizeof(uint32_t),
-        (void*)m_mesh.GetIndices().data());
+        objects[0].m_mesh.GetIndices().size() * sizeof(uint32_t),
+        (void*)objects[0].m_mesh.GetIndices().data());
 
     /*
         Create the bottom level acceleration structure containing the actual scene geometry
@@ -1166,7 +1146,7 @@ void VContext::createScene()
     geometry.geometry.triangles.sType = VK_STRUCTURE_TYPE_GEOMETRY_TRIANGLES_NV;
     geometry.geometry.triangles.vertexData = vertexBuffer.buffer;
     geometry.geometry.triangles.vertexOffset = 0;
-    geometry.geometry.triangles.vertexCount = static_cast<uint32_t>(m_mesh.GetVertices().size());
+    geometry.geometry.triangles.vertexCount = static_cast<uint32_t>(objects[0].m_mesh.GetVertices().size());
     geometry.geometry.triangles.vertexStride = sizeof(Vertex);
     geometry.geometry.triangles.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
     geometry.geometry.triangles.indexData = indexBuffer.buffer;
@@ -1186,17 +1166,18 @@ void VContext::createScene()
     */
 
     //Setup mesh transform and acceleration structure reference in mesh
-    m_mesh.pos = {0, 0, 5};
-    m_mesh.rot = {45, 45, 0};
+    for(auto& obj: objects)
+        obj.m_mesh.meshGeometry.accelerationStructureHandle = bottomLevelAS.handle;
 
-    m_mesh.UpdateTransform();
-    m_mesh.meshGeometry.accelerationStructureHandle = bottomLevelAS.handle;
+    std::vector<GeometryInstance> instances;
+    for(auto& obj: objects)
+        instances.push_back(obj.m_mesh.meshGeometry);
 
-
+    VBuffer::Buffer instanceBuffer;
     createBuffer(VK_BUFFER_USAGE_RAY_TRACING_BIT_NV, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        &m_mesh.meshBuffer,
-        sizeof(GeometryInstance),
-        &m_mesh.meshGeometry);
+        &instanceBuffer,
+        sizeof(GeometryInstance) * instances.size(),
+        instances.data());
 
     CreateTopLevelAccelerationStructure(topLevelAS);
 
@@ -1259,12 +1240,12 @@ void VContext::createScene()
     buildInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_NV;
     buildInfo.pGeometries = nullptr;
     buildInfo.geometryCount = 0;
-    buildInfo.instanceCount = 1;
+    buildInfo.instanceCount = 2;
 
     vkCmdBuildAccelerationStructureNV(
         cmdBuffer,
         &buildInfo,
-        m_mesh.meshBuffer.buffer,
+        instanceBuffer.buffer,
         0,
         VK_FALSE,
         topLevelAS.accelerationStructure,
@@ -1277,7 +1258,7 @@ void VContext::createScene()
     flushCommandBuffer(cmdBuffer, graphicsQueue);
 
     scratchBuffer.destroy();
-    m_mesh.meshBuffer.destroy();
+    instanceBuffer.destroy();
 }
 
 
@@ -1931,7 +1912,7 @@ void VContext::buildCommandbuffers()
     }
 }
 
-void VContext::setupRayTracingSupport()
+void VContext::setupRayTracingSupport(std::vector<VObject>& objects)
 {
     // Query the ray tracing properties of the current implementation, we will need them later on
     rayTracingProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PROPERTIES_NV;
@@ -1949,8 +1930,8 @@ void VContext::setupRayTracingSupport()
     CHECK_ERROR(vkCreateSemaphore(device.logicalDevice, &semaphoreCreateInfo, nullptr, &semaphores.renderComplete));
 
     camera.type = Camera::lookat;
-    camera.setPosition(glm::vec3(0, 0, -10));
-    camera.setPerspective(90.0f, static_cast<float>(WIDTH) / static_cast<float>(HEIGHT), 1, 1024);
+    camera.setPosition(glm::vec3(0, 0, -20));
+    camera.setPerspective(60.0f, static_cast<float>(WIDTH) / static_cast<float>(HEIGHT), 1, 1024);
     camera.setRotation(glm::vec3(0, 0, 0));
 
     // Set up submit info structure
@@ -1963,7 +1944,7 @@ void VContext::setupRayTracingSupport()
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = &semaphores.renderComplete;
 
-    createScene();
+    createScene(objects);
     CreateStorageImage();
     createUniformBuffer();
     createRayTracingPipeline();

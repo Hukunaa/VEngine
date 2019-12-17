@@ -34,7 +34,7 @@ void main() {
     const uint sbtRecordStride = 0;
     const uint missIndex = 0;
     const float tmin = 0.0f;
-    const float tmax = 10.0f;
+    const float tmax = 100.0f;
     const int payloadLocation = 0;
 
     traceNV(Scene,

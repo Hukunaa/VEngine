@@ -175,6 +175,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\Game.cpp" />
     <ClCompile Include="librairies\nv_helpers_vk\BottomLevelASGenerator.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
@@ -221,11 +222,13 @@
     <ClCompile Include="VEngine.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\Game.h" />
     <ClInclude Include="include\Camera.h" />
     <ClInclude Include="include\Context.h" />
     <ClInclude Include="include\Device.h" />
     <ClInclude Include="include\Initializers.h" />
     <ClInclude Include="include\Mesh.h" />
+    <ClInclude Include="include\Object.h" />
     <ClInclude Include="include\Tools.h" />
     <ClInclude Include="librairies\nv_helpers_vk\BottomLevelASGenerator.h" />
     <ClInclude Include="librairies\nv_helpers_vk\DescriptorSetGenerator.h" />

@@ -13,6 +13,7 @@
 #include <Initializers.h>
 #include <Tools.h>
 #include <Mesh.h>
+#include <Object.h>
 
 #pragma region Structures
 struct Semaphore {
@@ -94,7 +95,7 @@ public:
     void CreateBottomLevelAccelerationStructure(const VkGeometryNV* geometries);
     void CreateTopLevelAccelerationStructure(AccelerationStructure& accelerationStruct);
     void CreateStorageImage();
-    void createScene();
+    void createScene(std::vector<VObject>& objects);
     void createRayTracingPipeline();
     void createSynchronizationPrimitives();
     void createPipelineCache();
@@ -106,7 +107,7 @@ public:
     void createUniformBuffer();
     void updateUniformBuffers();
     void buildCommandbuffers();
-    void setupRayTracingSupport();
+    void setupRayTracingSupport(std::vector<VObject>& objects);
     void prepareFrame();
     void submitFrame() const;
     void draw();
@@ -254,7 +255,6 @@ public:
 
     VkMemoryRequirements2 memReqBottomLevelAS;
     Camera camera;
-    VMesh m_mesh;
     struct
     {
         VkImage image;
