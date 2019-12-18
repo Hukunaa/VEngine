@@ -12,7 +12,6 @@
 #include <Device.h>
 #include <Initializers.h>
 #include <Tools.h>
-#include <Mesh.h>
 #include <Object.h>
 
 #pragma region Structures
@@ -113,6 +112,7 @@ public:
     void draw();
     void SetupDebugMessenger();
     void CleanUp();
+    void UpdateObjects(std::vector<VObject>& objects);
 
     static void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
     static void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
@@ -154,7 +154,6 @@ public:
     bool CheckValidationLayerSupport();
     bool IsDeviceSuitable(VkPhysicalDevice device);
     bool checkDeviceExtensionSupport(VkPhysicalDevice device) const;
-    void UpdateMesh(VMesh& p_mesh);
 
 #pragma endregion
 #pragma region VkResult Methods
@@ -213,7 +212,7 @@ public:
     VkSemaphore renderFinishedSemaphore{};
 
     //AccelerationStructure
-    AccelerationStructure bottomLevelAS{};
+    std::vector<AccelerationStructure> bottomLevelAS{};
     AccelerationStructure topLevelAS{};
 
     //SwapChain
@@ -240,6 +239,8 @@ public:
     VBuffer::Buffer vertexBuffer;
     VBuffer::Buffer indexBuffer;
     VBuffer::Buffer ubo;
+    VBuffer::Buffer matBuffer;
+    VBuffer::Buffer vertBuffer;
 
     StorageImage storageImage{};
     VkPhysicalDeviceRayTracingPropertiesNV rayTracingProperties{};
@@ -255,6 +256,10 @@ public:
 
     VkMemoryRequirements2 memReqBottomLevelAS;
     Camera camera;
+
+    std::vector<float> bufferVertices;
+    std::vector<uint32_t> sceneIndices;
+
     struct
     {
         VkImage image;

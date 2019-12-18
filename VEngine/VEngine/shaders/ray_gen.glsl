@@ -12,11 +12,6 @@ layout(set = 0, binding = 2) uniform UniformData
 layout(location = 0) rayPayloadNV vec3 ResultColor;
 
 void main() {
-    //const vec2 uv = vec2(gl_LaunchIDNV.xy) / vec2(gl_LaunchSizeNV.xy - 1);
-    /*vec4 uv = vec4(gl_LaunchIDNV.xy, -1, 1) * ubo.viewInverse * ubo.projInverse;
-    const vec3 origin = vec3(uv.x, uv.y, uv.z);
-    const vec3 direction = vec3(0.0f, 0.0f, 1.0f);*/
-
     const vec2 pixelCenter = vec2(gl_LaunchIDNV.xy) + vec2(0.5);
 	const vec2 inUV = pixelCenter/vec2(gl_LaunchSizeNV.xy);
 	vec2 d = inUV * 2.0 - 1.0;

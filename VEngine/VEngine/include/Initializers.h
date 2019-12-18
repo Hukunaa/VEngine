@@ -6,6 +6,17 @@
 #include <Device.h>
 #include <fstream>
 
+struct Vertex
+{
+    glm::vec3 pos;
+    glm::vec3 normal;
+};
+
+struct VertexArray
+{
+    std::vector<Vertex> vertices;
+};
+
 namespace Initializers
 {
     inline VkMemoryAllocateInfo memoryAllocateInfo()

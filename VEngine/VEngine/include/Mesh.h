@@ -1,14 +1,15 @@
 #pragma once
-#include <glm/glm.hpp>
 #include <vector>
-#include <Context.h>
+#include <glm/glm.hpp>
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
+#include <fstream>
+#include <sstream>
+#include <iostream>
+#include <map>
 
-class VContext;
-
-struct Vertex
-{
-    glm::vec3 pos;
-};
+#include <Initializers.h>
 
 struct GeometryInstance
 {
@@ -27,7 +28,8 @@ public:
     static enum MESH_PRIMITIVE
     {
         CUBE,
-        TRIANGLE
+        TRIANGLE,
+        PLANE
     };
 
     VMesh()
@@ -39,22 +41,19 @@ public:
     };
     ~VMesh() = default;
 
-    void SetMeshType(MESH_PRIMITIVE primitive)
-    {
-        if(primitive == MESH_PRIMITIVE::CUBE)
-        {
-            PushVertex({{1.000000, -1.000000, -1.000000}});
-            PushVertex({{1.000000, -1.000000, 1.000000}});
-            PushVertex({{-1.000000, -1.000000, 1.000000}});
-            PushVertex({{-1.000000, -1.000000, -1.000000}});
-            PushVertex({{1.000000, 1.000000, -0.999999}});
-            PushVertex({{0.999999, 1.000000, 1.000001}});
-            PushVertex({{-1.000000, 1.000000, 1.000000}});
-            PushVertex({{-1.000000, 1.000000, -1.000000}});
-            SetIndices({ 1, 2, 3, 7, 6, 5, 4, 5, 1, 5, 6, 2, 2, 6, 7, 0, 3, 7, 1, 1, 3, 4, 7, 5, 0, 4, 1, 1, 5, 2, 3, 2, 7, 4, 0, 7});
-        }
-    }
+    void LoadMesh(const std::string& path, bool flipNormals);
+    void processNode(aiNode *node, const aiScene *scene);
+    void processMesh(aiMesh* mesh, const aiScene* scene);
 
+
+
+
+    void SetOffset(uint32_t offset)
+    {
+        meshGeometry.instanceOffset = offset;
+    }
+        
+    void SetMeshType(MESH_PRIMITIVE primitive);
     void PushVertex(const Vertex p_vert){ vertices.push_back(p_vert); }
     void PushIndex(const uint32_t p_index){ indices.push_back(p_index); }
     void SetIndices(std::vector<uint32_t> p_indices) {indices = p_indices;}
@@ -66,7 +65,10 @@ public:
 
     VBuffer::Buffer meshBuffer;
     GeometryInstance meshGeometry;
+    std::vector<float> bufferVertices;
+
 private:
     std::vector<uint32_t> indices;
     std::vector<Vertex> vertices;
+    std::string directory;
 };

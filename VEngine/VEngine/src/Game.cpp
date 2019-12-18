@@ -1,4 +1,5 @@
 #include "Game.h"
+
 void Game::InitAPI()
 {
     glfwInit();
@@ -24,17 +25,23 @@ void Game::InitAPI()
 }
 void Game::SetupGame()
 {
-    VObject cube1;
-    cube1.m_mesh.SetMeshType(VMesh::MESH_PRIMITIVE::CUBE);
-    cube1.SetPosition({-5, 0, 0});
-    cube1.SetRotation({20, 20, 0});
-    m_objects.push_back(cube1);
+    VObject wuson("wuson");
+    wuson.m_mesh.LoadMesh("shaders/bunny.obj", true);
+    //cube1.m_mesh.SetMeshType(VMesh::MESH_PRIMITIVE::CUBE);
+    wuson.m_material.colorAndRoughness = {0.5, 0.5, 1, 1};
+    wuson.SetPosition({0, -2, -5});
+    wuson.SetRotation({90, 0, 0});
+    wuson.SetScale(0.1f);
+    m_objects.push_back(wuson);
 
-    VObject cube2;
-    cube2.m_mesh.SetMeshType(VMesh::MESH_PRIMITIVE::CUBE);
-    cube2.SetPosition({0, 0, 5});
-    cube2.SetRotation({45, 45, 0});
-    m_objects.push_back(cube2);
+    VObject plane("floor");
+    plane.m_mesh.SetMeshType(VMesh::MESH_PRIMITIVE::PLANE);
+    plane.m_material.colorAndRoughness = {0, 1, 1, 1};
+    plane.SetPosition({0, -1, -5});
+    plane.SetRotation({0, 0, 0});
+    plane.SetScale(1);
+
+    m_objects.push_back(plane);
     GameInstance->setupRayTracingSupport(m_objects);
     GameLoop();
 }
@@ -44,18 +51,17 @@ void Game::GameLoop()
     while (!glfwWindowShouldClose(GameInstance->GetWindow()))
     {
         glfwPollEvents();
-        //context.m_mesh.pos = {sinus, 0, 5};
-        //GameInstance->m_mesh.Rotate({0.1f, 0.1f, 0.1f});
 
-        //KNOWN MEMORY LEAK HERE
-        //context.UpdateMesh(context.m_mesh);
+        //FindObject("wuson")->SetPosition({sin(sinus), 0, -5});
+        FindObject("wuson")->SetRotation({0, 0, sinus});
+        GameInstance->UpdateObjects(m_objects);
         GameInstance->draw();
         if (GameInstance->camera.updated)
         {
             GameInstance->camera.updateViewMatrix();
             GameInstance->updateUniformBuffers();
         }
-        sinus += 0.01f;
+        sinus += 0.001f;
     }
     GameInstance->CleanUp();
 }
