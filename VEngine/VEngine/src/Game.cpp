@@ -26,18 +26,35 @@ void Game::InitAPI()
 void Game::SetupGame()
 {
     VObject wuson("wuson");
-    wuson.m_mesh.LoadMesh("shaders/fellow.obj", true);
+    wuson.m_mesh.LoadMesh("shaders/bunny.obj", true);
     //cube1.m_mesh.SetMeshType(VMesh::MESH_PRIMITIVE::CUBE);
     wuson.m_material.colorAndRoughness = {1, 1, 1, 1};
     wuson.SetPosition({0, -4, -5});
     wuson.SetRotation({180, 0, 0});
-    wuson.SetScale(2);
+    wuson.SetScale(0.1);
     m_objects.push_back(wuson);
 
+     VObject wuson1("wuson1");
+    wuson1.m_mesh.LoadMesh("shaders/bunny.obj", true);
+    //cube1.m_mesh.SetMeshType(VMesh::MESH_PRIMITIVE::CUBE);
+    wuson1.m_material.colorAndRoughness = {1, 1, 1, 1};
+    wuson1.SetPosition({3, -4, -5});
+    wuson1.SetRotation({180, 0, 0});
+    wuson1.SetScale(0.1);
+    m_objects.push_back(wuson1);
+
+    VObject wuson2("wuson2");
+    wuson2.m_mesh.LoadMesh("shaders/bunny.obj", true);
+    //cube1.m_mesh.SetMeshType(VMesh::MESH_PRIMITIVE::CUBE);
+    wuson2.m_material.colorAndRoughness = {1, 1, 1, 1};
+    wuson2.SetPosition({-3, -4, -5});
+    wuson2.SetRotation({180, 0, 0});
+    wuson2.SetScale(0.1);
+    m_objects.push_back(wuson2);
 
     VObject plane("floor");
     plane.m_mesh.SetMeshType(VMesh::MESH_PRIMITIVE::PLANE);
-    plane.m_material.colorAndRoughness = {0.4,0.9,1, 0.0};
+    plane.m_material.colorAndRoughness = {0.1,1,1, 0.0};
     plane.SetPosition({-4, -1, -5});
     plane.SetRotation({0, 0, 0});
     plane.SetScale(4);
@@ -55,6 +72,8 @@ void Game::GameLoop()
 
         //FindObject("wuson")->SetPosition({sin(sinus), 0, -5});
         FindObject("wuson")->SetRotation({0, sinus, 0});
+        FindObject("wuson1")->SetRotation({0, sinus, 0});
+        FindObject("wuson2")->SetRotation({0, sinus, 0});
         GameInstance->UpdateObjects(m_objects);
         GameInstance->draw();
         if (GameInstance->camera.updated)
