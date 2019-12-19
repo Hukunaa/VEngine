@@ -26,20 +26,21 @@ void Game::InitAPI()
 void Game::SetupGame()
 {
     VObject wuson("wuson");
-    wuson.m_mesh.LoadMesh("shaders/bunny.obj", true);
+    wuson.m_mesh.LoadMesh("shaders/fellow.obj", true);
     //cube1.m_mesh.SetMeshType(VMesh::MESH_PRIMITIVE::CUBE);
-    wuson.m_material.colorAndRoughness = {0.5, 0.5, 1, 1};
-    wuson.SetPosition({0, -2, -5});
-    wuson.SetRotation({90, 0, 0});
-    wuson.SetScale(0.1f);
+    wuson.m_material.colorAndRoughness = {1, 1, 1, 1};
+    wuson.SetPosition({0, -4, -5});
+    wuson.SetRotation({180, 0, 0});
+    wuson.SetScale(2);
     m_objects.push_back(wuson);
+
 
     VObject plane("floor");
     plane.m_mesh.SetMeshType(VMesh::MESH_PRIMITIVE::PLANE);
-    plane.m_material.colorAndRoughness = {0, 1, 1, 1};
-    plane.SetPosition({0, -1, -5});
+    plane.m_material.colorAndRoughness = {0.4,0.9,1, 0.0};
+    plane.SetPosition({-4, -1, -5});
     plane.SetRotation({0, 0, 0});
-    plane.SetScale(1);
+    plane.SetScale(4);
 
     m_objects.push_back(plane);
     GameInstance->setupRayTracingSupport(m_objects);
@@ -53,7 +54,7 @@ void Game::GameLoop()
         glfwPollEvents();
 
         //FindObject("wuson")->SetPosition({sin(sinus), 0, -5});
-        FindObject("wuson")->SetRotation({0, 0, sinus});
+        FindObject("wuson")->SetRotation({0, sinus, 0});
         GameInstance->UpdateObjects(m_objects);
         GameInstance->draw();
         if (GameInstance->camera.updated)
@@ -61,7 +62,7 @@ void Game::GameLoop()
             GameInstance->camera.updateViewMatrix();
             GameInstance->updateUniformBuffers();
         }
-        sinus += 0.001f;
+        sinus = 0.05f;
     }
     GameInstance->CleanUp();
 }

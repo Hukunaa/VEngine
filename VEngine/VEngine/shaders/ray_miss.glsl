@@ -1,9 +1,18 @@
 #version 460
 #extension GL_NV_ray_tracing : require
 
-layout(location = 0) rayPayloadInNV vec3 ResultColor;
+struct Payload
+{
+    vec3 pointColor;
+    vec3 pointNormal;
+    float reflectiveness;
+    vec3 pointHit;
+    bool missed;
+};
 
+layout(location = 0) rayPayloadInNV Payload Result;
 void main() 
 {
-    ResultColor = vec3(0.412f, 0.796f, 1.0f);
+    Result.missed = true;
+    Result.pointColor = vec3(0.0, 0.5, 0.5);
 }

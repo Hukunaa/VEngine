@@ -1392,7 +1392,7 @@ void VContext::createRayTracingPipeline()
     uniformBufferBinding.binding = 2;
     uniformBufferBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     uniformBufferBinding.descriptorCount = 1;
-    uniformBufferBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
+    uniformBufferBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV |  VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
 
     VkDescriptorSetLayoutBinding matBufferBinding{};
     matBufferBinding.binding = 3;
@@ -1488,7 +1488,7 @@ void VContext::createRayTracingPipeline()
     rayPipelineInfo.pStages = shaderStages.data();
     rayPipelineInfo.groupCount = static_cast<uint32_t>(groups.size());
     rayPipelineInfo.pGroups = groups.data();
-    rayPipelineInfo.maxRecursionDepth = 2;
+    rayPipelineInfo.maxRecursionDepth = 1;
     rayPipelineInfo.layout = RpipelineLayout;
     vkCreateRayTracingPipelinesNV(device.logicalDevice, nullptr, 1, &rayPipelineInfo, nullptr, &Rpipeline);
 }
