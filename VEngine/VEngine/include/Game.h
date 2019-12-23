@@ -17,6 +17,7 @@ public:
 
     VContext* GameInstance;
     std::vector<VObject> m_objects;
+    std::vector<int> trianglesNumber;
 
     void InitAPI();
     void SetupGame();

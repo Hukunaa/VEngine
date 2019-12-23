@@ -6,6 +6,7 @@
 struct VMaterial
 {
     glm::vec4 colorAndRoughness;
+    glm::vec4 ior;
 };
 
 struct Material

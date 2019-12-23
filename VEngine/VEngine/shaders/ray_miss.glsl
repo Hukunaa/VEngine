@@ -5,14 +5,14 @@ struct Payload
 {
     vec3 pointColor;
     vec3 pointNormal;
-    float reflectiveness;
+    vec3 matSpecs;
     vec3 pointHit;
-    bool missed;
+    //vec3 pointTangent;
 };
 
 layout(location = 0) rayPayloadInNV Payload Result;
 void main() 
 {
-    Result.missed = true;
-    Result.pointColor = vec3(0.0, 0.5, 0.5);
+    Result.matSpecs.z = 1;
+    Result.pointColor = vec3(0.529, 0.8, 0.92);
 }

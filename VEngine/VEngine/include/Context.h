@@ -92,7 +92,7 @@ public:
     void setupSwapChain(uint32_t width, uint32_t height, bool vsync = false);
     void flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue, bool free = true) const;
     void CreateBottomLevelAccelerationStructure(const VkGeometryNV* geometries);
-    void CreateTopLevelAccelerationStructure(AccelerationStructure& accelerationStruct);
+    void CreateTopLevelAccelerationStructure(AccelerationStructure& accelerationStruct, int instanceCount);
     void CreateStorageImage();
     void createScene(std::vector<VObject>& objects);
     void createRayTracingPipeline();
@@ -106,7 +106,7 @@ public:
     void createUniformBuffer();
     void updateUniformBuffers();
     void buildCommandbuffers();
-    void setupRayTracingSupport(std::vector<VObject>& objects);
+    void setupRayTracingSupport(std::vector<VObject>& objects, std::vector<int>& trianglesNumber);
     void prepareFrame();
     void submitFrame() const;
     void draw();
@@ -241,6 +241,7 @@ public:
     VBuffer::Buffer ubo;
     VBuffer::Buffer matBuffer;
     VBuffer::Buffer vertBuffer;
+    VBuffer::Buffer NumberOfTriangles;
 
     StorageImage storageImage{};
     VkPhysicalDeviceRayTracingPropertiesNV rayTracingProperties{};
@@ -259,7 +260,6 @@ public:
 
     std::vector<float> bufferVertices;
     std::vector<uint32_t> sceneIndices;
-
     struct
     {
         VkImage image;

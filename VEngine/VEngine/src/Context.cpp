@@ -667,7 +667,7 @@ void VContext::UpdateObjects(std::vector<VObject>& objects)
 
     //Generate TLAS
     AccelerationStructure newDataAS;
-    CreateTopLevelAccelerationStructure(newDataAS);
+    CreateTopLevelAccelerationStructure(newDataAS, instances.size());
 
     //Get memory requirements
     VkMemoryRequirements2 memReqTopLevelAS;
@@ -1051,13 +1051,13 @@ void VContext::CreateBottomLevelAccelerationStructure(const VkGeometryNV* geomet
     bottomLevelAS.push_back(newBottomAS);
 }
 //VALID
-void VContext::CreateTopLevelAccelerationStructure(AccelerationStructure& accelerationStruct)
+void VContext::CreateTopLevelAccelerationStructure(AccelerationStructure& accelerationStruct, int instanceCount)
 {
     VkAccelerationStructureInfoNV accelerationStructureInfo{};
     accelerationStructureInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
     accelerationStructureInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_NV;
     accelerationStructureInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_NV;
-    accelerationStructureInfo.instanceCount = 2;
+    accelerationStructureInfo.instanceCount = instanceCount;
     accelerationStructureInfo.geometryCount = 0;
 
     VkAccelerationStructureCreateInfoNV accelerationStructureCI{};
@@ -1316,7 +1316,7 @@ void VContext::createScene(std::vector<VObject>& objects)
         instances.data());
 
     //Generate TLAS
-    CreateTopLevelAccelerationStructure(topLevelAS);
+    CreateTopLevelAccelerationStructure(topLevelAS, instances.size());
 
     //Get memory requirements
     VkMemoryRequirements2 memReqTopLevelAS;
@@ -1406,12 +1406,11 @@ void VContext::createRayTracingPipeline()
 	vertexBufferBinding.descriptorCount = 1;
 	vertexBufferBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
 
-	VkDescriptorSetLayoutBinding indexBufferBinding{};
-	indexBufferBinding.binding = 5;
-	indexBufferBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-	indexBufferBinding.descriptorCount = 1;
-	indexBufferBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
-
+    VkDescriptorSetLayoutBinding TriNumberBinding{};
+	TriNumberBinding.binding = 6;
+	TriNumberBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+	TriNumberBinding.descriptorCount = 1;
+	TriNumberBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
     //create a Binding vector for Uniform bindings
     std::vector<VkDescriptorSetLayoutBinding> bindings({
         accelerationStructureLayoutBinding,
@@ -1419,7 +1418,7 @@ void VContext::createRayTracingPipeline()
         uniformBufferBinding,
         matBufferBinding,
         vertexBufferBinding,
-        indexBufferBinding
+        TriNumberBinding
     });
 
     //Create the buffer that will map the shader uniforms to the actual shader
@@ -1440,14 +1439,11 @@ void VContext::createRayTracingPipeline()
     const uint32_t shaderIndexMiss = 1;
     const uint32_t shaderIndexShadowMiss = 2;
     const uint32_t shaderIndexClosestHit = 3;
-    //const uint32_t shaderIndexShadowHit = 4;
-
     std::array<VkPipelineShaderStageCreateInfo, 4> shaderStages{};
     shaderStages[shader_index_ray] = loadShader("shaders/bin/ray_gen.spv", VK_SHADER_STAGE_RAYGEN_BIT_NV);
     shaderStages[shaderIndexMiss] = loadShader("shaders/bin/ray_miss.spv", VK_SHADER_STAGE_MISS_BIT_NV);
     shaderStages[shaderIndexShadowMiss] = loadShader("shaders/bin/ray_smiss.spv", VK_SHADER_STAGE_MISS_BIT_NV);
     shaderStages[shaderIndexClosestHit] = loadShader("shaders/bin/ray_chit.spv", VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV);
-    //shaderStages[shaderIndexShadowHit] = loadShader("shaders/bin/ray_shit.spv", VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV);
     /*
         Setup ray tracing shader groups
     */
@@ -1943,31 +1939,20 @@ void VContext::createDescriptorSets()
 
     VBuffer::Buffer indexBuff;
 
-    /*for(auto num : sceneIndices)
-        std::cout << num << '\n';*/
-
-    createBuffer(
-    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-    &indexBuff,
-    sceneIndices.size() * sizeof(uint32_t),
-    sceneIndices.data());
-
     VkDescriptorBufferInfo vertexBufferDescriptor{};
 	vertexBufferDescriptor.buffer = vertBuffer.buffer;
 	vertexBufferDescriptor.range = VK_WHOLE_SIZE;
 
-	VkDescriptorBufferInfo indexBufferDescriptor{};
-	indexBufferDescriptor.buffer = indexBuff.buffer;
-	indexBufferDescriptor.range = VK_WHOLE_SIZE;
-
+    VkDescriptorBufferInfo TriNumberDescriptor{};
+	TriNumberDescriptor.buffer = NumberOfTriangles.buffer;
+	TriNumberDescriptor.range = VK_WHOLE_SIZE;
     //Storage Image
     const VkWriteDescriptorSet resultImageWrite = Initializers::writeDescriptorSet(RdescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, &storageImageDescriptor);
     //Uniform Data
     const VkWriteDescriptorSet uniformBufferWrite = Initializers::writeDescriptorSet(RdescriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2, &ubo.descriptor);
     const VkWriteDescriptorSet matBufferWrite = Initializers::writeDescriptorSet(RdescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3, &matBuffer.descriptor);
     VkWriteDescriptorSet vertexBufferWrite = Initializers::writeDescriptorSet(RdescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 4, &vertBuffer.descriptor);
-	VkWriteDescriptorSet indexBufferWrite = Initializers::writeDescriptorSet(RdescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 5, &indexBuff.descriptor);
+	VkWriteDescriptorSet TriNumberWrite = Initializers::writeDescriptorSet(RdescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 6, &NumberOfTriangles.descriptor);
 
     std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
         accelerationStructureWrite,
@@ -1975,7 +1960,7 @@ void VContext::createDescriptorSets()
         uniformBufferWrite,
         matBufferWrite,
         vertexBufferWrite,
-        indexBufferWrite
+        TriNumberWrite
     };
 
     vkUpdateDescriptorSets(device.logicalDevice, static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
@@ -2085,7 +2070,7 @@ void VContext::buildCommandbuffers()
     }
 }
 
-void VContext::setupRayTracingSupport(std::vector<VObject>& objects)
+void VContext::setupRayTracingSupport(std::vector<VObject>& objects, std::vector<int>& trianglesNumber)
 {
     // Query the ray tracing properties of the current implementation, we will need them later on
     rayTracingProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PROPERTIES_NV;
@@ -2103,9 +2088,9 @@ void VContext::setupRayTracingSupport(std::vector<VObject>& objects)
     CHECK_ERROR(vkCreateSemaphore(device.logicalDevice, &semaphoreCreateInfo, nullptr, &semaphores.renderComplete));
 
     camera.type = Camera::lookat;
-    camera.setPosition(glm::vec3(-2, 4, -5));
+    camera.setPosition(glm::vec3(-1, 5, -5));
     camera.setPerspective(60.0f, static_cast<float>(WIDTH) / static_cast<float>(HEIGHT), 1, 1024);
-    camera.setRotation(glm::vec3(-20, -20, 0));
+    camera.setRotation(glm::vec3(-10, -20, 0));
 
     // Set up submit info structure
     // Semaphores will stay the same during application lifetime
@@ -2124,15 +2109,20 @@ void VContext::setupRayTracingSupport(std::vector<VObject>& objects)
 
     for(auto obj : objects)
     {
+        trianglesNumber.push_back(obj.m_mesh.GetVertices().size() / 3);
+        std::cout << "NUMBER OF TRIANGLES: " << obj.m_mesh.GetVertices().size() / 3
+                  << " INSTANCE ID: " << obj.m_mesh.meshGeometry.instanceId << '\n';
+
         for(auto vertex : obj.m_mesh.GetVertices())
         {
             bufferVertices.push_back(vertex.pos.x);
             bufferVertices.push_back(vertex.pos.y);
+           // bufferVertices.push_back(vertex.pos.z);
             bufferVertices.push_back(vertex.pos.z);
+            bufferVertices.push_back(obj.m_mesh.meshGeometry.instanceId);
             bufferVertices.push_back(vertex.normal.x);
             bufferVertices.push_back(vertex.normal.y);
             bufferVertices.push_back(vertex.normal.z);
-            bufferVertices.push_back(0);
             bufferVertices.push_back(0);
         }
 
@@ -2140,6 +2130,10 @@ void VContext::setupRayTracingSupport(std::vector<VObject>& objects)
         mat.push_back(obj.m_material.colorAndRoughness.y);
         mat.push_back(obj.m_material.colorAndRoughness.z);
         mat.push_back(obj.m_material.colorAndRoughness.w);
+        mat.push_back(obj.m_material.ior.x);
+        mat.push_back(obj.m_material.ior.y);
+        mat.push_back(obj.m_material.ior.z);
+        mat.push_back(obj.m_material.ior.w);
     }
 
     CHECK_ERROR(createBuffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
@@ -2153,6 +2147,12 @@ void VContext::setupRayTracingSupport(std::vector<VObject>& objects)
         &vertBuffer,
         bufferVertices.size() * sizeof(float),
         bufferVertices.data()));
+    
+    CHECK_ERROR(createBuffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        &NumberOfTriangles,
+        trianglesNumber.size() * sizeof(int),
+        trianglesNumber.data()));
 
     //CHECK_ERROR(ubo.map());
 

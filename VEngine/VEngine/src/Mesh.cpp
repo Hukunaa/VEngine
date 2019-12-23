@@ -17,7 +17,7 @@ void VMesh::SetMeshType(MESH_PRIMITIVE primitive)
 
         if(primitive == MESH_PRIMITIVE::PLANE)
         {
-            LoadMesh("shaders/plane.obj", false);
+            LoadMesh("shaders/models/plane.obj", false);
         }
 }
 void VMesh::LoadMesh(const std::string& path, bool flipNormals)
@@ -25,10 +25,7 @@ void VMesh::LoadMesh(const std::string& path, bool flipNormals)
     Assimp::Importer import;
     const aiScene*  scene;
 
-    if(flipNormals)
-        scene = import.ReadFile(path, aiProcess_Triangulate);
-    else
-        scene = import.ReadFile(path, aiProcess_Triangulate);
+    scene = import.ReadFile(path, aiProcess_Triangulate | aiProcess_GenSmoothNormals);
 
     if(!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) 
     {
