@@ -22,7 +22,6 @@ public:
     void InitAPI();
     void SetupGame();
     void GameLoop();
-
     VObject* FindObject(const char* name)
     {
         for(auto& obj : m_objects)
@@ -33,5 +32,7 @@ public:
     }
     const int WIDTH{0};
     const int HEIGHT{0};
+
+    std::vector<float> time{};
 };
 

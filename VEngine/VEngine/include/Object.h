@@ -31,6 +31,13 @@ public:
         m_transform = glm::transpose(translationMat * rotationMat * scaleMat);
         m_mesh.meshGeometry.transform = m_transform;
     }
+    void Translate(glm::vec3 pos)
+    {
+        glm::mat4 translate = glm::translate(glm::mat4(1.0f), pos);
+        translationMat *= translate;
+        m_transform = glm::transpose(translationMat * rotationMat * scaleMat);
+        m_mesh.meshGeometry.transform = m_transform;
+    }
     void SetRotation(glm::vec3 angle)
     {
         rotationMat = glm::rotate(rotationMat, glm::radians(angle.x), glm::vec3(1, 0, 0));

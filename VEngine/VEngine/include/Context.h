@@ -155,6 +155,13 @@ public:
     bool IsDeviceSuitable(VkPhysicalDevice device);
     bool checkDeviceExtensionSupport(VkPhysicalDevice device) const;
 
+    void UpdateTime(std::vector<float>& time)
+    {
+        TimeBuffer.map();
+        memcpy(TimeBuffer.mapped, time.data(), time.size() * sizeof(float));
+        TimeBuffer.unmap();
+    }
+
 #pragma endregion
 #pragma region VkResult Methods
     VkResult acquireNextImage(VkSemaphore presentCompleteSemaphore, uint32_t* imageIndex) const;
@@ -242,6 +249,7 @@ public:
     VBuffer::Buffer matBuffer;
     VBuffer::Buffer vertBuffer;
     VBuffer::Buffer NumberOfTriangles;
+    VBuffer::Buffer TimeBuffer;
 
     StorageImage storageImage{};
     VkPhysicalDeviceRayTracingPropertiesNV rayTracingProperties{};
@@ -266,5 +274,7 @@ public:
         VkDeviceMemory mem;
         VkImageView view;
     } depthStencil{};
+
+    std::vector<float> t{};
 #pragma endregion
 };

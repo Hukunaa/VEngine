@@ -104,7 +104,7 @@ public:
 
     void setTranslation(glm::vec3 translation)
     {
-        this->position = translation;
+        this->position += translation;
         updateViewMatrix();
     };
 

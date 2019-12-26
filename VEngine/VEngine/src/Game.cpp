@@ -21,48 +21,71 @@ void Game::InitAPI()
     GameInstance->setupRenderPass();
     GameInstance->createPipelineCache();
     GameInstance->setupFrameBuffer();
-
+    time.push_back(0.5f);
 }
 void Game::SetupGame()
 {
-    VObject wuson("wuson");
-    wuson.m_mesh.LoadMesh("shaders/models/monkey.obj", true);
+    VObject monkey("sphere");
+    monkey.m_mesh.LoadMesh("shaders/models/sphere.obj", true);
     //cube1.m_mesh.SetMeshType(VMesh::MESH_PRIMITIVE::CUBE);
-    wuson.m_material.colorAndRoughness = {1, 0.2, 0.2, 0.4};
-    wuson.m_material.ior = {1.5, 0, 0, 0};
-    wuson.SetPosition({0, -4, -5});
-    wuson.SetRotation({180, 0, 0});
-    wuson.SetScale(1);
-    m_objects.push_back(wuson);
 
-     VObject wuson1("wuson1");
-    wuson1.m_mesh.LoadMesh("shaders/models/sphere.obj", true);
-    //cube1.m_mesh.SetMeshType(VMesh::MESH_PRIMITIVE::CUBE);
-    wuson1.m_material.colorAndRoughness = {0.2, 1, 0.2, 0.8};
-    wuson.m_material.ior = {5, 0, 0, 0};
-    wuson1.SetPosition({3, -4, -5});
-    wuson1.SetRotation({0, 0, 0});
-    wuson1.SetScale(1.5);
-    m_objects.push_back(wuson1);
+    monkey.m_material.colorAndRoughness = {0.1, 0.2, 0.5, 0};
+    monkey.m_material.ior = {1, 0, 0, 0};
 
-    VObject wuson2("wuson2");
-    wuson2.m_mesh.LoadMesh("shaders/models/bunny.obj", true);
+    monkey.SetPosition({0, -4, -6});
+    monkey.SetRotation({180, 0, 0});
+    monkey.SetScale(0.08);
+    m_objects.push_back(monkey);
+
+     VObject sphere2("sphere2");
+    sphere2.m_mesh.LoadMesh("shaders/models/monkey.obj", true);
     //cube1.m_mesh.SetMeshType(VMesh::MESH_PRIMITIVE::CUBE);
-    wuson2.m_material.colorAndRoughness = {0.2, 0.5, 1, 0.0};
-    wuson.m_material.ior = {0.470, 0, 0, 0};
-    wuson2.SetPosition({-3, -3, -5});
-    wuson2.SetRotation({180, 0, 0});
-    wuson2.SetScale(0.1);
-    m_objects.push_back(wuson2);
+
+    sphere2.m_material.colorAndRoughness = {0.8, 0.6, 0.2, 0};
+    sphere2.m_material.ior = {2, 0.3, 0, 0};
+
+    sphere2.SetPosition({0, -5, -2});
+    sphere2.SetRotation({180, 200, 0});
+    sphere2.SetScale(1.4);
+    m_objects.push_back(sphere2);
 
     VObject plane("floor");
-    plane.m_mesh.SetMeshType(VMesh::MESH_PRIMITIVE::PLANE);
-    plane.m_material.colorAndRoughness = {1,1,1, 0.0};
-    plane.m_material.ior = {-25, 0, 0, 0};
-    plane.SetPosition({-4, -3, -5});
+    plane.m_mesh.LoadMesh("shaders/models/plane.obj", true);
+
+    plane.m_material.colorAndRoughness = {0.4,0.8,0.0, 0};
+    plane.m_material.ior = {1, 0, 0, 0};
+
+    plane.SetPosition({0, -2.8, 0});
     plane.SetRotation({0, 0, 0});
-    plane.SetScale(4);
+    plane.SetScale(1);
     m_objects.push_back(plane);
+
+    /*VObject plane2("floor2");
+    plane2.m_mesh.LoadMesh("shaders/models/plane.obj", true);
+    plane2.m_material.colorAndRoughness = {1,1,1.0, 0};
+    plane2.m_material.ior = {-25, 0, 0, 0};
+    plane2.SetPosition({0, 10, -8});
+    plane2.SetRotation({90, 0, 0});
+    plane2.SetScale(1);
+    m_objects.push_back(plane2);
+
+    VObject plane3("floor3");
+    plane3.m_mesh.LoadMesh("shaders/models/plane.obj", true);
+    plane3.m_material.colorAndRoughness = {0,0,1.0, 0};
+    plane3.m_material.ior = {-25, 0, 0, 0};
+    plane3.SetPosition({-8, 10, -8});
+    plane3.SetRotation({90, 0, 90});
+    plane3.SetScale(1);
+    m_objects.push_back(plane3);
+
+    VObject plane4("floor4");
+    plane4.m_mesh.LoadMesh("shaders/models/plane.obj", true);
+    plane4.m_material.colorAndRoughness = {0,1.0,0.0, 0};
+    plane4.m_material.ior = {-25, 0, 0, 0};
+    plane4.SetPosition({8, 10, -8});
+    plane4.SetRotation({90, 0, -90});
+    plane4.SetScale(1);
+    m_objects.push_back(plane4);*/
 
     GameInstance->setupRayTracingSupport(m_objects, trianglesNumber);
     GameLoop();
@@ -72,11 +95,14 @@ void Game::GameLoop()
      float sinus = 0;
     while (!glfwWindowShouldClose(GameInstance->GetWindow()))
     {
+        time[0] += 0.1f;
         glfwPollEvents();
 
-        FindObject("wuson")->SetRotation({0, sinus, 0});
-        FindObject("wuson1")->SetRotation({0, 0, -sinus});
-        FindObject("wuson2")->SetRotation({0, sinus,0});
+        FindObject("sphere")->Translate({cos(sinus * 0.02) * 0.015, 0, 0});
+        FindObject("sphere")->Translate({0, 0, sin(sinus * 0.02) * 0.015});
+        //FindObject("wuson1")->SetRotation({0, 0, -sinus});
+        //FindObject("wuson2")->SetRotation({0, sinus,0});
+        //GameInstance->camera.setTranslation({sinus * 0.01, 0, 0});
         GameInstance->UpdateObjects(m_objects);
         GameInstance->draw();
         if (GameInstance->camera.updated)
@@ -84,7 +110,8 @@ void Game::GameLoop()
             GameInstance->camera.updateViewMatrix();
             GameInstance->updateUniformBuffers();
         }
-        sinus = 0.025f;
+        sinus += 0.25f;
+        GameInstance->UpdateTime(time);
     }
     GameInstance->CleanUp();
 }

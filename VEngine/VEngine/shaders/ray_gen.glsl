@@ -10,28 +10,46 @@ layout(set = 0, binding = 2) uniform CamData
     mat4 projInverse;
 } ubo;
 
+layout(set = 0, binding = 5) uniform Time
+{
+    float t[];
+}time;
+
 struct Payload
 {
     vec3 pointColor;
     vec3 pointNormal;
     vec3 matSpecs;
     vec3 pointHit;
-    //vec3 pointTangent;
-    //vec3 biTangent;
+    bool hasHit;
+    //float attenuation;
 };
 
 layout(location = 0) rayPayloadNV Payload Result;
-const int MAX_RECURSION = 4;
-const int MAX_REFLEXION_PER_RAY = 32;
 
-vec2 hash2(inout float seed) 
+
+const int MAX_RECURSION = 32;
+const int MAX_INDIRECT = 4;
+const int payloadLocation = 0;
+const uint rayFlags = gl_RayFlagsOpaqueNV;
+const uint cullMask = 0xFF;
+const float tmin = 0.0001;
+const float tmax = 100;
+
+float seedRand = 0;
+float rand() { return fract(sin(seedRand++)*43758.5453123); }
+
+uint base_hash(uvec2 p) 
 {
-    return fract(sin(vec2(seed+=0.1,seed+=0.1))*vec2(43758.5453123,22578.1459123));
+    p = 1103515245U*((p >> 1U)^(p.yx));
+    uint h32 = 1103515245U*((p.x)^(p.y>>3U));
+    return h32^(h32 >> 16);
 }
-
-float rand(vec2 co)
+vec3 hash3(inout float seed) 
 {
-    return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
+    uint n = base_hash(floatBitsToUint(vec2(seed+=.1,seed+=.1)));
+    uvec3 rz = uvec3(n, n*16807U, n*48271U);
+    return vec3(rz & uvec3(0x7fffffffU))/float(0x7fffffff);
 }
 
 vec3 randomSpherePoint(vec3 rand) {
@@ -45,30 +63,66 @@ vec3 randomSpherePoint(vec3 rand) {
   return vec3(x, y, z);
 }
 
-/**
- * Generate a uniformly distributed random point on the unit-hemisphere
- * around the given normal vector.
- * 
- * This function can be used to generate reflected rays for diffuse surfaces.
- * Actually, this function can be used to sample reflected rays for ANY surface
- * with an arbitrary BRDF correctly.
- * This is because we always need to solve the integral over the hemisphere of
- * a surface point by using numerical approximation using a sum of many
- * sample directions.
- * It is only with non-lambertian BRDF's that, in theory, we could sample them more
- * efficiently, if we knew in which direction the BRDF reflects the most energy.
- * This would be importance sampling, but care must be taken as to not over-estimate
- * those surfaces, because then our sum for the integral would be greater than the
- * integral itself. This is the inherent problem with importance sampling.
- * 
- * The points are uniform over the sphere and NOT over the projected disk
- * of the sphere, so this function cannot be used when sampling a spherical
- * light, where we need to sample the projected surface of the light (i.e. disk)!
- */
+ vec3 randomCosineWeightedHemispherePoint(vec3 rand, vec3 n) 
+ {
+  float r = rand.x * 0.5 + 0.5; // [-1..1) -> [0..1)
+  float angle = (rand.y + 1.0) * M_PI; // [-1..1] -> [0..2*PI)
+  float sr = sqrt(r);
+  vec2 p = vec2(sr * cos(angle), sr * sin(angle));
+  /*
+   * Unproject disk point up onto hemisphere:
+   * 1.0 == sqrt(x*x + y*y + z*z) -> z = sqrt(1.0 - x*x - y*y)
+   */
+  vec3 ph = vec3(p.xy, sqrt(1.0 - p*p));
+  /*
+   * Compute some arbitrary tangent space for orienting
+   * our hemisphere 'ph' around the normal. We use the camera's up vector
+   * to have some fix reference vector over the whole screen.
+   */
+  vec3 tangent = normalize(rand);
+  vec3 bitangent = cross(tangent, n);
+  tangent = cross(bitangent, n);
+  
+  /* Make our hemisphere orient around the normal. */
+  return tangent * ph.x + bitangent * ph.y + n * ph.z;
+}
+
+vec3 random_in_unit_sphere(inout float seed) 
+{
+    vec3 h = hash3(seed) * vec3(2.,6.28318530718,1.)-vec3(1,0,0);
+    float phi = h.y;
+    float r = pow(h.z, 1./3.);
+	return r * vec3(sqrt(1.-h.x*h.x)*vec2(sin(phi),cos(phi)),h.x);
+}
+
 vec3 randomHemispherePoint(vec3 rand, vec3 n) 
 {
   vec3 v = randomSpherePoint(rand);
   return v * sign(dot(v, n));
+}
+
+bool getScattering(Payload rayHit, inout vec3 origin, inout vec3 dir, inout vec3 attenuation)
+{
+    if(rayHit.matSpecs.x == 1)
+    {
+        vec3 forigin = rayHit.pointHit;
+        vec3 fdir = normalize(rayHit.pointNormal + random_in_unit_sphere(seedRand));
+        attenuation = rayHit.pointColor;
+        origin = forigin;
+        dir = fdir;
+        return true;
+    }
+    if(rayHit.matSpecs.x == 2)
+    {
+        vec3 rd = reflect(dir, rayHit.pointNormal);
+        vec3 forigin = rayHit.pointHit;
+        vec3 fdir = normalize(rd + rayHit.matSpecs.y * random_in_unit_sphere(seedRand));
+        attenuation = rayHit.pointColor;
+        origin = forigin;
+        dir = fdir;
+        return true;
+    }
+    return false;
 }
 
 void main() 
@@ -84,47 +138,33 @@ void main()
     vec3 forigin = vec3(origin.xyz);
     vec3 fdir = vec3(direction.xyz);
 
-    const uint rayFlags = gl_RayFlagsOpaqueNV;
-    const uint cullMask = 0xFF;
-    const float tmin = 0.0f;
-    const float tmax = 100.0f;
-    const int payloadLocation = 0;
-
-    vec3 finalPointColor = vec3(0);
-    float totalLight = 1;
-    int rayDivision = 0;
-
-    float reflectionPower = 1;
-    for (int i = 0; i < MAX_RECURSION; i++)
+    //recursion to iteration
+    vec3 finalPointColor = vec3(1);
+    seedRand =  gl_LaunchIDNV.x * gl_LaunchIDNV.y * time.t[0];
+    Payload hitRecord;
+    for(int i = 0; i < MAX_RECURSION; ++i)
     {
-        vec3 primaryColor;
         traceNV(Scene, rayFlags, cullMask, 0, 0, 0, forigin, tmin, fdir, tmax, payloadLocation);
-        Payload primaryPayload = Result;
-
-        primaryColor = primaryPayload.pointColor * reflectionPower;
-
-
-        rayDivision++;
-        //IF RAY MISS
-        if(primaryPayload.matSpecs.z == 1 || primaryPayload.matSpecs.x <= 0)
+        hitRecord = Result;
+        if(hitRecord.hasHit)
         {
-            finalPointColor += primaryColor;
+            vec3 attenuation;
+            if(getScattering(hitRecord, forigin, fdir, attenuation))
+                finalPointColor *= attenuation;
+            else
+                finalPointColor *= 0;
+        }
+        else
+        {
+            float t = .5 * fdir.y + .5;
+            finalPointColor *= mix(vec3(1),vec3(0.5,0.7,1), t);
+            //finalPointColor *= 0.3;
             break;
         }
-
-        //REFLECTION PART
-        forigin = primaryPayload.pointHit + primaryPayload.pointNormal * 0.001f;
-        fdir = reflect(fdir, primaryPayload.pointNormal);
-        reflectionPower = 1 - dot(fdir, primaryPayload.pointNormal);
-
-        //RAY FINAL COLOR
-        finalPointColor += primaryColor;
-
     }
-    
-    finalPointColor /= rayDivision;
+    //finalPointColor /= MAX_RECURSION;
 
-    imageStore(ResultImage, ivec2(gl_LaunchIDNV.xy), vec4(finalPointColor, 1.0f));
+    imageStore(ResultImage, ivec2(gl_LaunchIDNV.xy), vec4(finalPointColor, 1.0));
 }
 
 
@@ -191,3 +231,31 @@ void main()
         //}
         //else
         //    break;
+
+
+        /*if(primaryPayload.matSpecs.x > 0)
+        {
+            //REFLECTION PART
+            forigin = primaryPayload.pointHit + primaryPayload.pointNormal * 0.01;
+            fdir = reflect(fdir, primaryPayload.pointNormal);
+            primaryColor *= 1 - dot(fdir, primaryPayload.pointNormal) * primaryPayload.matSpecs.x;
+        }*/
+
+        //INDIRECT LIGHT
+        /*vec3 indirectColor = vec3(0);
+        float division = 1;
+        for(int k = 0; k < MAX_INDIRECT; ++k)
+        {
+            float rx = rand(vec2(primaryPayload.pointHit.x + k, primaryPayload.pointHit.y + k));
+            float ry = rand(vec2(primaryPayload.pointHit.x + k * 3, primaryPayload.pointHit.y + k * 3));
+            float rz = rand(vec2(primaryPayload.pointHit.x + k * 2, primaryPayload.pointHit.y + k * 2));
+            vec3 rayOrigin = forigin;
+            vec3 rayDir = randomCosineWeightedHemispherePoint(vec3(rx, 1250, rz), primaryPayload.pointNormal);
+            traceNV(Scene, rayFlags, cullMask, 0, 0, 0, rayOrigin, tmin, rayDir, tmax, 0);
+            indirectColor += dot(rayDir, primaryPayload.pointNormal) * Result.pointColor;
+            division += 1;
+        }
+        indirectColor /= division;*/
+
+        //RAY FINAL COLOR
+        //finalPointColor += (primaryColor + indirectColor);

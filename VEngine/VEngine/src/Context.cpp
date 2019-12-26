@@ -1406,6 +1406,12 @@ void VContext::createRayTracingPipeline()
 	vertexBufferBinding.descriptorCount = 1;
 	vertexBufferBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
 
+    VkDescriptorSetLayoutBinding timeBufferBinding{};
+	timeBufferBinding.binding = 5;
+	timeBufferBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	timeBufferBinding.descriptorCount = 1;
+	timeBufferBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
+
     VkDescriptorSetLayoutBinding TriNumberBinding{};
 	TriNumberBinding.binding = 6;
 	TriNumberBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -1418,6 +1424,7 @@ void VContext::createRayTracingPipeline()
         uniformBufferBinding,
         matBufferBinding,
         vertexBufferBinding,
+        timeBufferBinding,
         TriNumberBinding
     });
 
@@ -1911,6 +1918,7 @@ void VContext::createDescriptorSets()
         { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 },
         { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1 },
         { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1},
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1},
         {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1}
     };
     VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = Initializers::descriptorPoolCreateInfo(poolSizes, 1);
@@ -1946,12 +1954,17 @@ void VContext::createDescriptorSets()
     VkDescriptorBufferInfo TriNumberDescriptor{};
 	TriNumberDescriptor.buffer = NumberOfTriangles.buffer;
 	TriNumberDescriptor.range = VK_WHOLE_SIZE;
+
+    VkDescriptorBufferInfo TimeBufferDescriptor{};
+	TriNumberDescriptor.buffer = TimeBuffer.buffer;
+	TriNumberDescriptor.range = VK_WHOLE_SIZE;
     //Storage Image
     const VkWriteDescriptorSet resultImageWrite = Initializers::writeDescriptorSet(RdescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, &storageImageDescriptor);
     //Uniform Data
     const VkWriteDescriptorSet uniformBufferWrite = Initializers::writeDescriptorSet(RdescriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2, &ubo.descriptor);
     const VkWriteDescriptorSet matBufferWrite = Initializers::writeDescriptorSet(RdescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3, &matBuffer.descriptor);
     VkWriteDescriptorSet vertexBufferWrite = Initializers::writeDescriptorSet(RdescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 4, &vertBuffer.descriptor);
+	VkWriteDescriptorSet TimeBufferWrite = Initializers::writeDescriptorSet(RdescriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 5, &TimeBuffer.descriptor);
 	VkWriteDescriptorSet TriNumberWrite = Initializers::writeDescriptorSet(RdescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 6, &NumberOfTriangles.descriptor);
 
     std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
@@ -1960,6 +1973,7 @@ void VContext::createDescriptorSets()
         uniformBufferWrite,
         matBufferWrite,
         vertexBufferWrite,
+        TimeBufferWrite,
         TriNumberWrite
     };
 
@@ -2088,9 +2102,9 @@ void VContext::setupRayTracingSupport(std::vector<VObject>& objects, std::vector
     CHECK_ERROR(vkCreateSemaphore(device.logicalDevice, &semaphoreCreateInfo, nullptr, &semaphores.renderComplete));
 
     camera.type = Camera::lookat;
-    camera.setPosition(glm::vec3(-1, 5, -5));
-    camera.setPerspective(60.0f, static_cast<float>(WIDTH) / static_cast<float>(HEIGHT), 1, 1024);
-    camera.setRotation(glm::vec3(-10, -20, 0));
+    camera.setPosition(glm::vec3(0, 6, -6));
+    camera.setPerspective(60.0f, static_cast<float>(WIDTH) / static_cast<float>(HEIGHT), 0.1, 1024);
+    camera.setRotation(glm::vec3(-10, 0, 0));
 
     // Set up submit info structure
     // Semaphores will stay the same during application lifetime
@@ -2135,6 +2149,12 @@ void VContext::setupRayTracingSupport(std::vector<VObject>& objects, std::vector
         mat.push_back(obj.m_material.ior.z);
         mat.push_back(obj.m_material.ior.w);
     }
+    t.push_back(1.0f);
+    CHECK_ERROR(createBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        &TimeBuffer,
+        t.size() * sizeof(float),
+        t.data()));
 
     CHECK_ERROR(createBuffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
