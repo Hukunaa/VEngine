@@ -1,31 +1,10 @@
-#include <Mesh.h>
+#include <VMesh.h>
 
-void VMesh::SetMeshType(MESH_PRIMITIVE primitive)
-{
-     if(primitive == MESH_PRIMITIVE::CUBE)
-        {
-            PushVertex({{1.000000, -1.000000, -1.000000}});
-            PushVertex({{1.000000, -1.000000, 1.000000}});
-            PushVertex({{-1.000000, -1.000000, 1.000000}});
-            PushVertex({{-1.000000, -1.000000, -1.000000}});
-            PushVertex({{1.000000, 1.000000, -0.999999}});
-            PushVertex({{0.999999, 1.000000, 1.000001}});
-            PushVertex({{-1.000000, 1.000000, 1.000000}});
-            PushVertex({{-1.000000, 1.000000, -1.000000}});
-            SetIndices({ 1, 2, 3, 7, 6, 5, 4, 5, 1, 5, 6, 2, 2, 6, 7, 0, 3, 7, 1, 1, 3, 4, 7, 5, 0, 4, 1, 1, 5, 2, 3, 2, 7, 4, 0, 7});
-        }
-
-        if(primitive == MESH_PRIMITIVE::PLANE)
-        {
-            LoadMesh("shaders/models/plane.obj", false);
-        }
-}
 void VMesh::LoadMesh(const std::string& path, bool flipNormals)
 {
     Assimp::Importer import;
-    const aiScene*  scene;
 
-    scene = import.ReadFile(path, aiProcess_Triangulate | aiProcess_GenSmoothNormals);
+    const aiScene* scene = import.ReadFile(path, aiProcess_Triangulate | aiProcess_GenSmoothNormals);
 
     if(!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) 
     {
@@ -103,7 +82,7 @@ void VMesh::processMesh(aiMesh *mesh, const aiScene *scene)
         // now wak through each of the mesh's faces (a face is a mesh its triangle) and retrieve the corresponding vertex indices.
         for(unsigned int i = 0; i < mesh->mNumFaces; i++)
         {
-            aiFace face = mesh->mFaces[i];
+            const aiFace face = mesh->mFaces[i];
             // retrieve all indices of the face and store them in the indices vector
             for(unsigned int j = 0; j < face.mNumIndices; j++)
                 m_indices.push_back(face.mIndices[j]);

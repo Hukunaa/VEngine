@@ -25,7 +25,7 @@ public:
         rotM = glm::rotate(rotM, glm::radians(rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
         rotM = glm::rotate(rotM, glm::radians(rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
 
-        glm::mat4 transM = glm::translate(glm::mat4(1.0f), position);
+        const glm::mat4 transM = glm::translate(glm::mat4(1.0f), position);
 
         matrices.view = transM * rotM;
         updated = true;

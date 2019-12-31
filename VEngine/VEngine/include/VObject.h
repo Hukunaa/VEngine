@@ -1,5 +1,5 @@
 #pragma once
-#include <Mesh.h>
+#include <VMesh.h>
 #include <glm/glm.hpp>
 #include <vector>
 
@@ -17,23 +17,23 @@ struct Material
 class VObject
 {
 public:
-    VObject(const char* name): translationMat(glm::mat4(1.0f)),
+    VObject(const char* name): m_name(name),
+    translationMat(glm::mat4(1.0f)),
     rotationMat(glm::mat4(1.0f)),
-    scaleMat(glm::mat4(1.0f)),
-    m_name(name) {}
+    scaleMat(glm::mat4(1.0f)) {}
 
     ~VObject() = default;
 
     void SetPosition(glm::vec3 pos)
     {
-        glm::mat4 translate = glm::translate(glm::mat4(1.0f), pos);
+        const glm::mat4 translate = glm::translate(glm::mat4(1.0f), pos);
         translationMat = translate;
         m_transform = glm::transpose(translationMat * rotationMat * scaleMat);
         m_mesh.meshGeometry.transform = m_transform;
     }
     void Translate(glm::vec3 pos)
     {
-        glm::mat4 translate = glm::translate(glm::mat4(1.0f), pos);
+        const glm::mat4 translate = glm::translate(glm::mat4(1.0f), pos);
         translationMat *= translate;
         m_transform = glm::transpose(translationMat * rotationMat * scaleMat);
         m_mesh.meshGeometry.transform = m_transform;

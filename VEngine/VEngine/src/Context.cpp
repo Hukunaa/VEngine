@@ -1,4 +1,4 @@
-#include <Context.h>
+#include <VContext.h>
 
 #include <algorithm>
 #include <array>
@@ -581,7 +581,7 @@ VkCommandBuffer VContext::createCommandBuffer(VkCommandBufferLevel level, bool b
     return cmdBuffer;
 }
 
-bool VContext::CheckValidationLayerSupport()
+bool VContext::CheckValidationLayerSupport() const
 {
     uint32_t layerCount;
     vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
@@ -652,7 +652,7 @@ void VContext::CleanUp()
 }
 void VContext::UpdateObjects(std::vector<VObject>& objects)
 {
-    VkCommandBuffer cmdBuffer = createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+    const VkCommandBuffer cmdBuffer = createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
     //Generate TLAS
     std::vector<GeometryInstance> instances;
     for(auto& obj: objects)
@@ -1051,7 +1051,7 @@ void VContext::CreateBottomLevelAccelerationStructure(const VkGeometryNV* geomet
     bottomLevelAS.push_back(newBottomAS);
 }
 //VALID
-void VContext::CreateTopLevelAccelerationStructure(AccelerationStructure& accelerationStruct, int instanceCount)
+void VContext::CreateTopLevelAccelerationStructure(AccelerationStructure& accelerationStruct, int instanceCount) const
 {
     VkAccelerationStructureInfoNV accelerationStructureInfo{};
     accelerationStructureInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
@@ -2102,9 +2102,9 @@ void VContext::setupRayTracingSupport(std::vector<VObject>& objects, std::vector
     CHECK_ERROR(vkCreateSemaphore(device.logicalDevice, &semaphoreCreateInfo, nullptr, &semaphores.renderComplete));
 
     camera.type = Camera::lookat;
-    camera.setPosition(glm::vec3(0, 6, -6));
-    camera.setPerspective(60.0f, static_cast<float>(WIDTH) / static_cast<float>(HEIGHT), 0.1, 1024);
-    camera.setRotation(glm::vec3(-10, 0, 0));
+    camera.setPosition(glm::vec3(0, 2, -8));
+    camera.setPerspective(80, static_cast<float>(WIDTH) / static_cast<float>(HEIGHT), 0.1, 1024);
+    camera.setRotation(glm::vec3(-15, 0, 0));
 
     // Set up submit info structure
     // Semaphores will stay the same during application lifetime

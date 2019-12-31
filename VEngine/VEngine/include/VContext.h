@@ -8,11 +8,11 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include <Camera.h>
-#include <Device.h>
-#include <Initializers.h>
-#include <Tools.h>
-#include <Object.h>
+#include <VCamera.h>
+#include <VDevice.h>
+#include <VInitializers.h>
+#include <VTools.h>
+#include <VObject.h>
 
 #pragma region Structures
 struct Semaphore {
@@ -92,7 +92,7 @@ public:
     void setupSwapChain(uint32_t width, uint32_t height, bool vsync = false);
     void flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue, bool free = true) const;
     void CreateBottomLevelAccelerationStructure(const VkGeometryNV* geometries);
-    void CreateTopLevelAccelerationStructure(AccelerationStructure& accelerationStruct, int instanceCount);
+    void CreateTopLevelAccelerationStructure(AccelerationStructure& accelerationStruct, int instanceCount) const;
     void CreateStorageImage();
     void createScene(std::vector<VObject>& objects);
     void createRayTracingPipeline();
@@ -151,12 +151,15 @@ public:
     VkPipelineShaderStageCreateInfo loadShader(std::string file_name, VkShaderStageFlagBits stage);
     static VkBool32 getSupportedDepthFormat(VkPhysicalDevice physicalDevice, VkFormat* depthFormat);
     VkDeviceSize copyShaderIdentifier(uint8_t* data, const uint8_t* shaderHandleStorage, uint32_t groupIndex) const;
-    bool CheckValidationLayerSupport();
+    bool CheckValidationLayerSupport() const;
     bool IsDeviceSuitable(VkPhysicalDevice device);
     bool checkDeviceExtensionSupport(VkPhysicalDevice device) const;
 
     void UpdateTime(std::vector<float>& time)
     {
+        if(time[0] > 1)
+            time[0] = 0.001f;
+
         TimeBuffer.map();
         memcpy(TimeBuffer.mapped, time.data(), time.size() * sizeof(float));
         TimeBuffer.unmap();
@@ -172,7 +175,7 @@ public:
 
 #pragma region Getter Setters
     static std::vector<const char*> GetRequieredExtensions();
-    const std::vector<const char*>& GetValidationLayers()
+    const std::vector<const char*>& GetValidationLayers() const
     {
         return validationLayers;
     }

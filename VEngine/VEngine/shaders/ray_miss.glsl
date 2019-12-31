@@ -15,5 +15,5 @@ layout(location = 0) rayPayloadInNV Payload Result;
 void main() 
 {
     Result.hasHit = false;
-    Result.pointColor = vec3(0.529, 0.8, 0.92);
+    Result.pointColor = vec3(0.0, 0.0, 0.0);
 }

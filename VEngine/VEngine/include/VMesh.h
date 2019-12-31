@@ -9,7 +9,7 @@
 #include <iostream>
 #include <map>
 
-#include <Initializers.h>
+#include <VInitializers.h>
 
 struct GeometryInstance
 {
@@ -24,13 +24,6 @@ struct GeometryInstance
 class VMesh
 {
 public:
-
-    static enum MESH_PRIMITIVE
-    {
-        CUBE,
-        TRIANGLE,
-        PLANE
-    };
 
     VMesh()
     {
@@ -52,8 +45,7 @@ public:
     {
         meshGeometry.instanceOffset = offset;
     }
-        
-    void SetMeshType(MESH_PRIMITIVE primitive);
+
     void PushVertex(const Vertex p_vert){ vertices.push_back(p_vert); }
     void PushIndex(const uint32_t p_index){ indices.push_back(p_index); }
     void SetIndices(std::vector<uint32_t> p_indices) {indices = p_indices;}

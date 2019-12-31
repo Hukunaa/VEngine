@@ -1,4 +1,4 @@
-#include "Game.h"
+#include <VGame.h>
 
 void Game::InitAPI()
 {
@@ -25,67 +25,70 @@ void Game::InitAPI()
 }
 void Game::SetupGame()
 {
-    VObject monkey("sphere");
-    monkey.m_mesh.LoadMesh("shaders/models/sphere.obj", true);
-    //cube1.m_mesh.SetMeshType(VMesh::MESH_PRIMITIVE::CUBE);
+    VObject sphere("sphere");
+    sphere.m_mesh.LoadMesh("shaders/models/sphere.obj", true);
 
-    monkey.m_material.colorAndRoughness = {0.1, 0.2, 0.5, 0};
+    sphere.m_material.colorAndRoughness = {238.0/255.0, 64.0/255.0, 53.0/255.0, 0};
+    sphere.m_material.ior = {1, 0.5, 0, 0};
+
+    sphere.SetPosition({0, -2, -6});
+    sphere.SetRotation({180, 0, 0});
+    sphere.SetScale(2);
+    m_objects.push_back(sphere);
+
+    VObject sphere2("light");
+    sphere2.m_mesh.LoadMesh("shaders/models/sphere.obj", true);
+    sphere2.m_material.colorAndRoughness = {243.0/255.0, 119.0/255.0, 54.0/255.0, 0};
+    sphere2.m_material.ior = {1, 0.4, 0, 0};
+
+    sphere2.SetPosition({-6, -1, 0});
+    sphere2.SetRotation({180, 0, 0});
+    sphere2.SetScale(1);
+    m_objects.push_back(sphere2);
+
+    VObject monkey("monkey");
+    monkey.m_mesh.LoadMesh("shaders/models/monkey.obj", true);
+
+    monkey.m_material.colorAndRoughness = {253.0/255.0, 244.0/255.0, 152.0/255.0, 0};
     monkey.m_material.ior = {1, 0, 0, 0};
 
-    monkey.SetPosition({0, -4, -6});
-    monkey.SetRotation({180, 0, 0});
-    monkey.SetScale(0.08);
+    monkey.SetPosition({0, -3, 0});
+    monkey.SetRotation({180, 200, 0});
+    monkey.SetScale(2);
     m_objects.push_back(monkey);
-
-     VObject sphere2("sphere2");
-    sphere2.m_mesh.LoadMesh("shaders/models/monkey.obj", true);
-    //cube1.m_mesh.SetMeshType(VMesh::MESH_PRIMITIVE::CUBE);
-
-    sphere2.m_material.colorAndRoughness = {0.8, 0.6, 0.2, 0};
-    sphere2.m_material.ior = {2, 0.3, 0, 0};
-
-    sphere2.SetPosition({0, -5, -2});
-    sphere2.SetRotation({180, 200, 0});
-    sphere2.SetScale(1.4);
-    m_objects.push_back(sphere2);
 
     VObject plane("floor");
     plane.m_mesh.LoadMesh("shaders/models/plane.obj", true);
 
-    plane.m_material.colorAndRoughness = {0.4,0.8,0.0, 0};
+    plane.m_material.colorAndRoughness = {123.0/255.0,192.0/255.0,67.0/255.0, 0};
     plane.m_material.ior = {1, 0, 0, 0};
 
-    plane.SetPosition({0, -2.8, 0});
+    plane.SetPosition({0, 0.3, 0});
     plane.SetRotation({0, 0, 0});
     plane.SetScale(1);
     m_objects.push_back(plane);
 
-    /*VObject plane2("floor2");
-    plane2.m_mesh.LoadMesh("shaders/models/plane.obj", true);
-    plane2.m_material.colorAndRoughness = {1,1,1.0, 0};
-    plane2.m_material.ior = {-25, 0, 0, 0};
-    plane2.SetPosition({0, 10, -8});
-    plane2.SetRotation({90, 0, 0});
-    plane2.SetScale(1);
-    m_objects.push_back(plane2);
+    VObject sphereOmbra("sphereOmbra");
+    sphereOmbra.m_mesh.LoadMesh("shaders/models/sphere.obj", true);
 
-    VObject plane3("floor3");
-    plane3.m_mesh.LoadMesh("shaders/models/plane.obj", true);
-    plane3.m_material.colorAndRoughness = {0,0,1.0, 0};
-    plane3.m_material.ior = {-25, 0, 0, 0};
-    plane3.SetPosition({-8, 10, -8});
-    plane3.SetRotation({90, 0, 90});
-    plane3.SetScale(1);
-    m_objects.push_back(plane3);
+    sphereOmbra.m_material.colorAndRoughness = {0.9, 0.9, 0.9, 0};//{3.0/255.0,146.0/255.0,207.0/255.0, 0};
+    sphereOmbra.m_material.ior = {2, 0.05, 0, 0};
 
-    VObject plane4("floor4");
-    plane4.m_mesh.LoadMesh("shaders/models/plane.obj", true);
-    plane4.m_material.colorAndRoughness = {0,1.0,0.0, 0};
-    plane4.m_material.ior = {-25, 0, 0, 0};
-    plane4.SetPosition({8, 10, -8});
-    plane4.SetRotation({90, 0, -90});
-    plane4.SetScale(1);
-    m_objects.push_back(plane4);*/
+    sphereOmbra.SetPosition({-2, -1.5, 2});
+    sphereOmbra.SetRotation({0, 0, 0});
+    sphereOmbra.SetScale(1.5);
+    m_objects.push_back(sphereOmbra);
+
+    VObject sphereOmbra2("sphereOmbra");
+    sphereOmbra2.m_mesh.LoadMesh("shaders/models/sphere.obj", true);
+
+    sphereOmbra2.m_material.colorAndRoughness = {1,1,1, 0};
+    sphereOmbra2.m_material.ior = {2, 0.2, 0, 0};
+
+    sphereOmbra2.SetPosition({2, -1.6, 4});
+    sphereOmbra2.SetRotation({0, 0, 0});
+    sphereOmbra2.SetScale(1.6);
+    m_objects.push_back(sphereOmbra2);
 
     GameInstance->setupRayTracingSupport(m_objects, trianglesNumber);
     GameLoop();
@@ -95,7 +98,7 @@ void Game::GameLoop()
      float sinus = 0;
     while (!glfwWindowShouldClose(GameInstance->GetWindow()))
     {
-        time[0] += 0.1f;
+        time[0] += 0.001f;
         glfwPollEvents();
 
         FindObject("sphere")->Translate({cos(sinus * 0.02) * 0.015, 0, 0});
@@ -107,6 +110,7 @@ void Game::GameLoop()
         GameInstance->draw();
         if (GameInstance->camera.updated)
         {
+            
             GameInstance->camera.updateViewMatrix();
             GameInstance->updateUniformBuffers();
         }

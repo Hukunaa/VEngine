@@ -2,9 +2,10 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-#include <Context.h>
-#include <Mesh.h>
-#include <Object.h>
+#include <VContext.h>
+#include <VMesh.h>
+#include <VObject.h>
+#include <VLight.h>
 
 #include <vector>
 
@@ -15,9 +16,6 @@ public:
     Game() : GameInstance(nullptr) {}
     ~Game() {delete GameInstance;}
 
-    VContext* GameInstance;
-    std::vector<VObject> m_objects;
-    std::vector<int> trianglesNumber;
 
     void InitAPI();
     void SetupGame();
@@ -33,6 +31,10 @@ public:
     const int WIDTH{0};
     const int HEIGHT{0};
 
+    VContext* GameInstance;
+    std::vector<VObject> m_objects;
+    std::vector<VLight> m_lights;
+    std::vector<int> trianglesNumber;
     std::vector<float> time{};
 };
 

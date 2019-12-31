@@ -221,16 +221,17 @@
     <ClCompile Include="src\Context.cpp" />
     <ClCompile Include="src\Mesh.cpp" />
     <ClCompile Include="VEngine.cpp" />
+    <ClCompile Include="src\VLight.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="include\Game.h" />
-    <ClInclude Include="include\Camera.h" />
-    <ClInclude Include="include\Context.h" />
-    <ClInclude Include="include\Device.h" />
-    <ClInclude Include="include\Initializers.h" />
-    <ClInclude Include="include\Mesh.h" />
-    <ClInclude Include="include\Object.h" />
-    <ClInclude Include="include\Tools.h" />
+    <ClInclude Include="include\VGame.h" />
+    <ClInclude Include="include\VCamera.h" />
+    <ClInclude Include="include\VContext.h" />
+    <ClInclude Include="include\VDevice.h" />
+    <ClInclude Include="include\VInitializers.h" />
+    <ClInclude Include="include\VMesh.h" />
+    <ClInclude Include="include\VObject.h" />
+    <ClInclude Include="include\VTools.h" />
     <ClInclude Include="librairies\ASSIMP\include\assimp\aabb.h" />
     <ClInclude Include="librairies\ASSIMP\include\assimp\ai_assert.h" />
     <ClInclude Include="librairies\ASSIMP\include\assimp\anim.h" />
@@ -318,6 +319,7 @@
     <ClInclude Include="librairies\nv_helpers_vk\ShaderBindingTableGenerator.h" />
     <ClInclude Include="librairies\nv_helpers_vk\TopLevelASGenerator.h" />
     <ClInclude Include="librairies\nv_helpers_vk\VKHelpers.h" />
+    <ClInclude Include="include\VLight.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="librairies\ASSIMP\include\assimp\color4.inl" />

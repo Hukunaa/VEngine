@@ -3,7 +3,7 @@
 #include <GLFW/glfw3.h>
 #include <vector>
 #include <cassert>
-#include <Device.h>
+#include <VDevice.h>
 #include <fstream>
 
 struct Vertex

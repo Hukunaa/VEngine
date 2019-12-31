@@ -1,7 +1,7 @@
 #include <iostream>
 #include <functional>
 #include <cstdlib>
-#include <Game.h>
+#include <VGame.h>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
