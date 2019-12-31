@@ -4,7 +4,8 @@ void VMesh::LoadMesh(const std::string& path, bool flipNormals)
 {
     Assimp::Importer import;
 
-    const aiScene* scene = import.ReadFile(path, aiProcess_Triangulate | aiProcess_GenSmoothNormals);
+    const aiScene* scene = import.ReadFile(path, aiProcess_Triangulate | aiProcess_GenSmoothNormals | 
+                                                      aiProcess_OptimizeMeshes |aiProcess_OptimizeGraph);
 
     if(!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) 
     {
@@ -33,8 +34,6 @@ void VMesh::processNode(aiNode* node, const aiScene* scene)
 void VMesh::processMesh(aiMesh *mesh, const aiScene *scene)
     {
         // data to fill
-        std::vector<Vertex> m_vertices;
-        std::vector<uint32_t> m_indices;
         //std::vector<Texture> textures;
 
         // Walk through each of the mesh's vertices
@@ -76,16 +75,15 @@ void VMesh::processMesh(aiMesh *mesh, const aiScene *scene)
             vector.y = mesh->mBitangents[i].y;
             vector.z = mesh->mBitangents[i].z;
             vertex.Bitangent = vector;*/
-            m_vertices.push_back(vertex);
+            vertices.push_back(vertex);
         }
         //for(unsigned int i = 0; i < mesh-; i++)
         // now wak through each of the mesh's faces (a face is a mesh its triangle) and retrieve the corresponding vertex indices.
         for(unsigned int i = 0; i < mesh->mNumFaces; i++)
         {
-            const aiFace face = mesh->mFaces[i];
             // retrieve all indices of the face and store them in the indices vector
-            for(unsigned int j = 0; j < face.mNumIndices; j++)
-                m_indices.push_back(face.mIndices[j]);
+            for(unsigned int j = 0; j < mesh->mFaces[i].mNumIndices; j++)
+                indices.push_back(mesh->mFaces[i].mIndices[j]);
         }
         // process materials
         //aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];    
@@ -111,6 +109,4 @@ void VMesh::processMesh(aiMesh *mesh, const aiScene *scene)
         
         // return a mesh object created from the extracted mesh data
         //return Mesh(vertices, indices, textures);
-        vertices = m_vertices;
-        indices = m_indices;
 }

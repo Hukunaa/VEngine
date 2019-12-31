@@ -20,6 +20,8 @@ public:
     void InitAPI();
     void SetupGame();
     void GameLoop();
+    void InputManager();
+    static void CursorCallBack(GLFWwindow *window, double xpos, double ypos );
     VObject* FindObject(const char* name)
     {
         for(auto& obj : m_objects)

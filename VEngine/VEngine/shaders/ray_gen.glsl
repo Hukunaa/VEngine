@@ -28,7 +28,7 @@ struct Payload
 layout(location = 0) rayPayloadNV Payload Result;
 
 
-const int MAX_RECURSION = 16;
+const int MAX_RECURSION = 8;
 const int SUPER_SAMPLING = 128;
 
 const int payloadLocation = 0;

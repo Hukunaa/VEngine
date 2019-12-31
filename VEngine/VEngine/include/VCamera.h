@@ -19,23 +19,31 @@ public:
 
     void updateViewMatrix()
     {
-        glm::mat4 rotM = glm::mat4(1.0f);
+        if (Pitch > 89.0f)
+            Pitch = 89.0f;
+        if (Pitch < -89.0f)
+            Pitch = -89.0f;
 
-        rotM = glm::rotate(rotM, glm::radians(rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
-        rotM = glm::rotate(rotM, glm::radians(rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
-        rotM = glm::rotate(rotM, glm::radians(rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
+        glm::vec3 front;
+        front.x = cos(glm::radians(Yaw)) * cos(glm::radians(Pitch));
+        front.y = sin(glm::radians(Pitch));
+        front.z = sin(glm::radians(Yaw)) * cos(glm::radians(Pitch));
+        Front = glm::normalize(front);
+        // Also re-calculate the Right and Up vector
+        Right = glm::normalize(glm::cross(Front, glm::vec3(0, 1, 0)));  // Normalize the vectors, because their length gets closer to 0 the more you look up or down which results in slower movement.
+        Up    = glm::normalize(glm::cross(Right, Front));
 
-        const glm::mat4 transM = glm::translate(glm::mat4(1.0f), position);
-
-        matrices.view = transM * rotM;
         updated = true;
-    };
+        matrices.view = glm::lookAt(position, position + Front, Up);
+    }
 
-    enum CameraType { lookat, firstperson };
-    CameraType type = CameraType::lookat;
+    float Pitch;
+    float Yaw;
 
-    glm::vec3 rotation = glm::vec3();
     glm::vec3 position = glm::vec3();
+    glm::vec3 Front;
+    glm::vec3 Right;
+    glm::vec3 Up;
 
     float rotationSpeed = 1.0f;
     float movementSpeed = 1.0f;
@@ -56,21 +64,6 @@ public:
         bool down = false;
     } keys;
 
-    bool moving() const
-    {
-        return keys.left || keys.right || keys.up || keys.down;
-    }
-
-    float getNearClip() const
-    {
-        return znear;
-    }
-
-    float getFarClip() const
-    {
-        return zfar;
-    }
-
     void setPerspective(float fov, float aspect, float znear, float zfar)
     {
         this->fov = fov;
@@ -79,26 +72,9 @@ public:
         matrices.perspective = glm::perspective(glm::radians(fov), aspect, znear, zfar);
     };
 
-    void updateAspectRatio(float aspect)
-    {
-        matrices.perspective = glm::perspective(glm::radians(fov), aspect, znear, zfar);
-    }
-
     void setPosition(glm::vec3 position)
     {
         this->position = position;
-        updateViewMatrix();
-    }
-
-    void setRotation(glm::vec3 rotation)
-    {
-        this->rotation = rotation;
-        updateViewMatrix();
-    };
-
-    void rotate(glm::vec3 delta)
-    {
-        this->rotation += delta;
         updateViewMatrix();
     }
 
@@ -113,34 +89,5 @@ public:
         this->position += delta;
         updateViewMatrix();
     }
-
-    void update(float deltaTime)
-    {
-        updated = false;
-        if (type == CameraType::firstperson)
-        {
-            if (moving())
-            {
-                glm::vec3 camFront;
-                camFront.x = -cos(glm::radians(rotation.x)) * sin(glm::radians(rotation.y));
-                camFront.y = sin(glm::radians(rotation.x));
-                camFront.z = cos(glm::radians(rotation.x)) * cos(glm::radians(rotation.y));
-                camFront = glm::normalize(camFront);
-
-                const float moveSpeed = deltaTime * movementSpeed;
-
-                if (keys.up)
-                    position += camFront * moveSpeed;
-                if (keys.down)
-                    position -= camFront * moveSpeed;
-                if (keys.left)
-                    position -= glm::normalize(glm::cross(camFront, glm::vec3(0.0f, 1.0f, 0.0f))) * moveSpeed;
-                if (keys.right)
-                    position += glm::normalize(glm::cross(camFront, glm::vec3(0.0f, 1.0f, 0.0f))) * moveSpeed;
-
-                updateViewMatrix();
-            }
-        }
-    };
 
 };

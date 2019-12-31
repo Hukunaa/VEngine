@@ -2101,10 +2101,10 @@ void VContext::setupRayTracingSupport(std::vector<VObject>& objects, std::vector
     // Ensures that the image is not presented until all commands have been sumbitted and executed
     CHECK_ERROR(vkCreateSemaphore(device.logicalDevice, &semaphoreCreateInfo, nullptr, &semaphores.renderComplete));
 
-    camera.type = Camera::lookat;
     camera.setPosition(glm::vec3(0, 2, -8));
     camera.setPerspective(80, static_cast<float>(WIDTH) / static_cast<float>(HEIGHT), 0.1, 1024);
-    camera.setRotation(glm::vec3(-15, 0, 0));
+    camera.Pitch = -15;
+    camera.Yaw = 0;
 
     // Set up submit info structure
     // Semaphores will stay the same during application lifetime
