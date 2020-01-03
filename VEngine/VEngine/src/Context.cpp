@@ -1088,6 +1088,20 @@ void VContext::CreateTopLevelAccelerationStructure(AccelerationStructure& accele
 //VALID
 void VContext::CreateStorageImage()
 {
+    VkImageCreateInfo accImageInfo = Initializers::imageCreateInfo();
+    accImageInfo.imageType = VK_IMAGE_TYPE_2D;
+    accImageInfo.format = VK_FORMAT_R32G32B32A32_SFLOAT;
+    accImageInfo.extent.width = WIDTH;
+    accImageInfo.extent.height = HEIGHT;
+    accImageInfo.extent.depth = 1;
+    accImageInfo.mipLevels = 1;
+    accImageInfo.arrayLayers = 1;
+    accImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    accImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    accImageInfo.usage =  VK_IMAGE_USAGE_STORAGE_BIT;
+    accImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    vkCreateImage(device.logicalDevice, &accImageInfo, nullptr, &accImage.image);
+
     VkImageCreateInfo image = Initializers::imageCreateInfo();
     image.imageType = VK_IMAGE_TYPE_2D;
     image.format = swapChain.colorFormat;
@@ -1102,6 +1116,7 @@ void VContext::CreateStorageImage()
     image.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     vkCreateImage(device.logicalDevice, &image, nullptr, &storageImage.image);
 
+    //STORAGE IMAGE
     VkMemoryRequirements memory_requierements;
     vkGetImageMemoryRequirements(device.logicalDevice, storageImage.image, &memory_requierements);
     VkMemoryAllocateInfo memoryAllocateInfo = Initializers::memoryAllocateInfo();
@@ -1121,8 +1136,29 @@ void VContext::CreateStorageImage()
     colorImageView.image = storageImage.image;
     vkCreateImageView(device.logicalDevice, &colorImageView, nullptr, &storageImage.view);
 
+    //ACCUMULATION IMAGE
+    VkMemoryRequirements memory_requierementsAcc;
+    vkGetImageMemoryRequirements(device.logicalDevice, accImage.image, &memory_requierementsAcc);
+    VkMemoryAllocateInfo memoryAllocateInfoAcc = Initializers::memoryAllocateInfo();
+    memoryAllocateInfoAcc.allocationSize = memory_requierementsAcc.size;
+    memoryAllocateInfoAcc.memoryTypeIndex = getMemoryType(memory_requierementsAcc.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    vkAllocateMemory(device.logicalDevice, &memoryAllocateInfoAcc, nullptr, &accImage.memory);
+    vkBindImageMemory(device.logicalDevice, accImage.image, accImage.memory, 0);
+
+    VkImageViewCreateInfo colorImageViewAcc = Initializers::imageViewCreateInfo();
+    colorImageViewAcc.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    colorImageViewAcc.format = swapChain.colorFormat;
+    colorImageViewAcc.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    colorImageViewAcc.subresourceRange.baseMipLevel = 0;
+    colorImageViewAcc.subresourceRange.levelCount = 1;
+    colorImageViewAcc.subresourceRange.baseArrayLayer = 0;
+    colorImageViewAcc.subresourceRange.layerCount = 1;
+    colorImageViewAcc.image = accImage.image;
+    vkCreateImageView(device.logicalDevice, &colorImageView, nullptr, &accImage.view);
+
     const VkCommandBuffer cmd_buffer = createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
     setImageLayout(cmd_buffer, storageImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+    //setImageLayout(cmd_buffer, accImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
     flushCommandBuffer(cmd_buffer, graphicsQueue);
 }
 //VALID
@@ -1417,6 +1453,13 @@ void VContext::createRayTracingPipeline()
 	TriNumberBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 	TriNumberBinding.descriptorCount = 1;
 	TriNumberBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_NV;
+
+    VkDescriptorSetLayoutBinding AccImageLayoutBinding{};
+    AccImageLayoutBinding.binding = 7;
+    AccImageLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    AccImageLayoutBinding.descriptorCount = 1;
+    AccImageLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_NV;
+
     //create a Binding vector for Uniform bindings
     std::vector<VkDescriptorSetLayoutBinding> bindings({
         accelerationStructureLayoutBinding,
@@ -1425,7 +1468,8 @@ void VContext::createRayTracingPipeline()
         matBufferBinding,
         vertexBufferBinding,
         timeBufferBinding,
-        TriNumberBinding
+        TriNumberBinding,
+        AccImageLayoutBinding
     });
 
     //Create the buffer that will map the shader uniforms to the actual shader
@@ -1919,7 +1963,8 @@ void VContext::createDescriptorSets()
         { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1 },
         { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1},
         { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1},
-        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1}
+        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1},
+        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 }
     };
     VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = Initializers::descriptorPoolCreateInfo(poolSizes, 1);
     vkCreateDescriptorPool(device.logicalDevice, &descriptorPoolCreateInfo, nullptr, &descriptorPool);
@@ -1941,11 +1986,15 @@ void VContext::createDescriptorSets()
     accelerationStructureWrite.descriptorCount = 1;
     accelerationStructureWrite.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV;
 
+    //FINAL IMAGE
     VkDescriptorImageInfo storageImageDescriptor{};
     storageImageDescriptor.imageView = storageImage.view;
     storageImageDescriptor.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 
-    VBuffer::Buffer indexBuff;
+    //ACCUMULATION IMAGE
+    VkDescriptorImageInfo accImageDescriptor{};
+    accImageDescriptor.imageView = accImage.view;
+    accImageDescriptor.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 
     VkDescriptorBufferInfo vertexBufferDescriptor{};
 	vertexBufferDescriptor.buffer = vertBuffer.buffer;
@@ -1956,10 +2005,13 @@ void VContext::createDescriptorSets()
 	TriNumberDescriptor.range = VK_WHOLE_SIZE;
 
     VkDescriptorBufferInfo TimeBufferDescriptor{};
-	TriNumberDescriptor.buffer = TimeBuffer.buffer;
-	TriNumberDescriptor.range = VK_WHOLE_SIZE;
+	TimeBufferDescriptor.buffer = TimeBuffer.buffer;
+	TimeBufferDescriptor.range = VK_WHOLE_SIZE;
+
+
     //Storage Image
     const VkWriteDescriptorSet resultImageWrite = Initializers::writeDescriptorSet(RdescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, &storageImageDescriptor);
+    const VkWriteDescriptorSet accImageWrite = Initializers::writeDescriptorSet(RdescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 7, &accImageDescriptor);
     //Uniform Data
     const VkWriteDescriptorSet uniformBufferWrite = Initializers::writeDescriptorSet(RdescriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2, &ubo.descriptor);
     const VkWriteDescriptorSet matBufferWrite = Initializers::writeDescriptorSet(RdescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3, &matBuffer.descriptor);
@@ -1974,7 +2026,8 @@ void VContext::createDescriptorSets()
         matBufferWrite,
         vertexBufferWrite,
         TimeBufferWrite,
-        TriNumberWrite
+        TriNumberWrite,
+        accImageWrite
     };
 
     vkUpdateDescriptorSets(device.logicalDevice, static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
@@ -1989,14 +2042,20 @@ void VContext::createUniformBuffer()
         &uniformData));
     CHECK_ERROR(ubo.map());
 
-    updateUniformBuffers();
+    updateUniformBuffers(true);
 }
 
-void VContext::updateUniformBuffers()
+void VContext::updateUniformBuffers(bool updateAcc)
 {
-    uniformData.projInverse = inverse(camera.matrices.perspective);
-    uniformData.viewInverse = inverse(camera.matrices.view);
+    uniformData.projInverse = camera.matrices.perspective;
+    uniformData.viewInverse = camera.matrices.view;
+
     memcpy(ubo.mapped, &uniformData, sizeof(uniformData));
+
+    if(updateAcc)
+        uniformData.data.y += camera.sample;
+    else
+        uniformData.data.y = camera.sample;
 }
 
 void VContext::buildCommandbuffers()
@@ -2020,6 +2079,51 @@ void VContext::buildCommandbuffers()
         const VkDeviceSize bindingOffsetMissShader = rayTracingProperties.shaderGroupHandleSize * INDEX_MISS;
         const VkDeviceSize bindingOffsetHitShader = rayTracingProperties.shaderGroupHandleSize * INDEX_CLOSEST_HIT;
         const VkDeviceSize bindingStride = rayTracingProperties.shaderGroupHandleSize;
+
+        /*Tools::setImageLayout(
+            commandBuffers[i],
+            accImage.image,
+            VK_IMAGE_LAYOUT_GENERAL,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            subresource_range,
+            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+
+        // Prepare ray tracing output image as transfer source
+        Tools::setImageLayout(
+            commandBuffers[i],
+            storageImage.image,
+            VK_IMAGE_LAYOUT_GENERAL,
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            subresource_range,
+            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+
+        VkImageCopy accImageCopy{};
+        accImageCopy.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
+        accImageCopy.srcOffset = { 0, 0, 0 };
+        accImageCopy.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
+        accImageCopy.dstOffset = { 0, 0, 0 };
+        accImageCopy.extent = { WIDTH, HEIGHT, 1 };
+        vkCmdCopyImage(commandBuffers[i], storageImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, accImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &accImageCopy);
+
+         Tools::setImageLayout(
+            commandBuffers[i],
+            storageImage.image,
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            VK_IMAGE_LAYOUT_GENERAL,
+            subresource_range,
+            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+
+         Tools::setImageLayout(
+            commandBuffers[i],
+            accImage.image,
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            VK_IMAGE_LAYOUT_GENERAL,
+            subresource_range,
+            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);*/
 
         vkCmdTraceRaysNV(commandBuffers[i],
             mShaderBindingTable.buffer, bindingOffsetRayGenShader,
@@ -2101,11 +2205,12 @@ void VContext::setupRayTracingSupport(std::vector<VObject>& objects, std::vector
     // Ensures that the image is not presented until all commands have been sumbitted and executed
     CHECK_ERROR(vkCreateSemaphore(device.logicalDevice, &semaphoreCreateInfo, nullptr, &semaphores.renderComplete));
 
-    camera.setPosition(glm::vec3(0, 2, -8));
+    camera.setPosition(glm::vec3(0, -6, -8));
     camera.setPerspective(80, static_cast<float>(WIDTH) / static_cast<float>(HEIGHT), 0.1, 1024);
     camera.Pitch = -15;
     camera.Yaw = 0;
-
+    uniformData.data.x = camera.sample;
+    uniformData.data.y = 1;
     // Set up submit info structure
     // Semaphores will stay the same during application lifetime
     // Command buffer submission info is set by each example

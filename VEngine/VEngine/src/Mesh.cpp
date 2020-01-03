@@ -5,7 +5,7 @@ void VMesh::LoadMesh(const std::string& path, bool flipNormals)
     Assimp::Importer import;
 
     const aiScene* scene = import.ReadFile(path, aiProcess_Triangulate | aiProcess_GenSmoothNormals | 
-                                                      aiProcess_OptimizeMeshes |aiProcess_OptimizeGraph);
+                                                      aiProcess_OptimizeMeshes |aiProcess_OptimizeGraph | aiProcess_MakeLeftHanded);
 
     if(!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) 
     {

@@ -6,6 +6,8 @@ layout(binding = 2, set = 0) uniform CamData
 {
     mat4 viewInverse;
     mat4 projInverse;
+    vec4 data;
+    
 } ubo;
 
 struct Payload
@@ -18,8 +20,6 @@ struct Payload
 };
 
 layout(location = 0) rayPayloadInNV Payload Result;
-
-layout(location = 2) rayPayloadNV bool shadowed;
 hitAttributeNV vec3 HitAttribs;
 
 struct Vertex
@@ -82,29 +82,14 @@ void main()
     Result.matSpecs.z = 0;
     vec4 matData = materials.m[2 * gl_InstanceID];
     vec4 matData2 = materials.m[2 * gl_InstanceID + 1];
-
-    vec3 lightDir = normalize(vec3(0.1, -0.5, 0));
-    float lightIntensity = 1;
-    vec3 lightColor = vec3(1, 1, 1);
     vec3 origin = gl_WorldRayOriginNV + (gl_WorldRayDirectionNV * gl_HitTNV) + normal * 0.0001;
 
-    float tmin = 0.0001;
-	float tmax = 100.0;
-
-
-    float dot_product = max(0.0, dot(lightDir, normal));
-    vec3 color = lightColor * dot_product * (lightIntensity);
-    
-    /*shadowed = true;
-    traceNV(Scene, gl_RayFlagsTerminateOnFirstHitNV | gl_RayFlagsOpaqueNV| gl_RayFlagsSkipClosestHitShaderNV, 0xFF, 1, 0, 1, origin, tmin, lightDir, tmax, 2);
-    if (shadowed) 
-		color *= vec3(0.0);*/
     Result.hasHit = true;
     Result.pointHit = origin;
     Result.pointNormal = normal;
-    Result.matSpecs.x = matData2.x;
-    Result.matSpecs.y = matData2.y;
-    Result.matSpecs.z = matData2.z;
+    Result.matSpecs.x = matData.w;
+    Result.matSpecs.y = matData2.x;
+    Result.matSpecs.z = matData2.y;
     Result.pointColor = matData.xyz;
     //Result.lightReceived = color;
 }

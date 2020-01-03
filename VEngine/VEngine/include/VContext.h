@@ -25,6 +25,7 @@ struct Semaphore {
 struct UniformData {
     glm::mat4 viewInverse;
     glm::mat4 projInverse;
+    glm::vec4 data;
 };
 
 struct SwapChainBuffer {
@@ -104,7 +105,7 @@ public:
     void createShaderBindingTable();
     void createDescriptorSets();
     void createUniformBuffer();
-    void updateUniformBuffers();
+    void updateUniformBuffers(bool updateAcc);
     void buildCommandbuffers();
     void setupRayTracingSupport(std::vector<VObject>& objects, std::vector<int>& trianglesNumber);
     void prepareFrame();
@@ -255,6 +256,7 @@ public:
     VBuffer::Buffer TimeBuffer;
 
     StorageImage storageImage{};
+    StorageImage accImage{};
     VkPhysicalDeviceRayTracingPropertiesNV rayTracingProperties{};
     std::vector<VkFence> waitFences;
     VkFormat depthFormat;
