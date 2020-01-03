@@ -47,7 +47,7 @@ public:
 
     float rotationSpeed = 1.0f;
     float movementSpeed = 1.0f;
-    int sample = 1;
+    int sample = 2;
 
     bool updated = false;
 

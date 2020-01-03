@@ -76,7 +76,7 @@ void Game::GameLoop()
 
     float lastX = 0;
     float lastY = 0;
-
+    glm::vec3 lastPos;
     while (!glfwWindowShouldClose(GameInstance->GetWindow()))
     {
         time[0] += 0.001f;
@@ -100,7 +100,7 @@ void Game::GameLoop()
             
             GameInstance->camera.updateViewMatrix();
             bool updateAccumulation = false;
-            if(GameInstance->camera.Front.x == lastX && GameInstance->camera.Front.y == lastY)
+            if(GameInstance->camera.Front.x == lastX && GameInstance->camera.Front.y == lastY && GameInstance->camera.position == lastPos)
                 updateAccumulation = true;
 
             GameInstance->updateUniformBuffers(updateAccumulation);
@@ -114,6 +114,7 @@ void Game::GameLoop()
 
         lastX = GameInstance->camera.Front.x;
         lastY = GameInstance->camera.Front.y;
+        lastPos = GameInstance->camera.position;
     }
     GameInstance->CleanUp();
 }

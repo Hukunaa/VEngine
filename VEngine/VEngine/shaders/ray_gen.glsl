@@ -150,7 +150,7 @@ float getEmitted(Payload ray, vec3 origin)
     vec3 position = vec3(0, -400, -1200);
     float radius = 2;
     float amountOfLight = 0;
-    float intensity = 10;
+    float intensity = 4;
     for(int i = 0; i < SHADOW_RES; ++i)
     {
         vec3 rd = normalize(randomSphereDirection(seedRand));
@@ -245,14 +245,14 @@ void main()
         color += pixelColor; /// recursionTimes;
         //color *= lightAmount;
     }
-    //color /= ubo.sampleLevel;
+    color /= ubo.data.x;
     float accumulate;
     if(ubo.data.x != ubo.data.y)
         accumulate = 0;
     else
         accumulate = 1;
-    vec3 accumulation = imageLoad(accImage, ivec2(gl_LaunchIDNV.xy)).rgb;
-    vec3 finalColor = mix(accumulation, color, 1 / (ubo.data.y + 1.0));
+    vec3 accumulation = imageLoad(accImage, ivec2(gl_LaunchIDNV.xy)).rgb; //* accumulate;
+    vec3 finalColor = mix(accumulation, color, 1 / (ubo.data.y + 1));
     //vec3 accumulation = mix(imageLoad(accImage, ivec2(gl_LaunchIDNV.xy)).rgb, color, 1 / (ubo.data.y + 1.0));
     //vec3 accumulation = (imageLoad(accImage, ivec2(gl_LaunchIDNV.xy)).rgb + color) / ubo.data.y;
     //vec3 accumulation = imageLoad(accImage, ivec2(gl_LaunchIDNV.xy)).rgb * float(accumulate) + color;
