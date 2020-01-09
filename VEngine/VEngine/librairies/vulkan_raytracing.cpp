@@ -10,7 +10,7 @@
 
 #include "vulkan/vulkan.h"
 
-static VkDevice s_global_device = nullptr;
+static VkDevice s_global_device = VK_NULL_HANDLE;
 
 VKAPI_ATTR VkResult VKAPI_CALL
                     vkCreateAccelerationStructureNV(VkDevice                                   device,
@@ -157,11 +157,11 @@ VKAPI_ATTR void VKAPI_CALL vkCmdWriteAccelerationStructuresPropertiesNV(
               queryPool, firstQuery);
 }
 
-VKAPI_ATTR VkResult VKAPI_CALL vkCompileDeferredNV(VkDevice   device,
+/*VKAPI_ATTR VkResult VKAPI_CALL vkCompileDeferredNV(VkDevice   device,
                                                    VkPipeline pipeline,
                                                    uint32_t   shader)
 {
   static const auto call = reinterpret_cast<PFN_vkCompileDeferredNV>(
       vkGetDeviceProcAddr(s_global_device, "vkCompileDeferredNV"));
   return call(device, pipeline, shader);
-}
+}*/

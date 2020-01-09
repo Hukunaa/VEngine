@@ -1,10 +1,12 @@
 #pragma once
+
+#include <accctrl.h>
 #include <cstdint>
 #include <optional>
 #include <vector>
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
+//#define VK_USE_PLATFORM_WIN32_KHR
+#include <windows.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
@@ -13,6 +15,19 @@
 #include <VInitializers.h>
 #include <VTools.h>
 #include <VObject.h>
+
+#include <vulkan/vulkan.h>
+#include <vulkan/vulkan.hpp>
+#include <vulkan/vulkan_win32.h>
+
+#include <cuda_runtime.h>
+#include <cuda.h>
+#include <optix.h>
+
+#include <nvvkpp/allocator_dedicated_vkpp.hpp>
+#include <nvvkpp/allocator_dma_vkpp.hpp>
+#include <nvvkpp/images_vkpp.hpp>
+#include <nvvkpp/commands_vkpp.hpp>
 
 #pragma region Structures
 struct Semaphore {
@@ -73,6 +88,25 @@ struct StorageImage {
     VkImageView view;
     VkFormat format;
 };
+
+using nvvkTexture = nvvkpp::TextureDma;
+using nvvkBuffer = nvvkpp::BufferDedicated;
+
+// Holding the Buffer for Cuda interop
+struct BufferCuda
+{
+    nvvkBuffer bufVk;  // The Vulkan allocated buffer
+
+    // Extra for Cuda
+    HANDLE handle = nullptr;  // The Win32 handle
+    void* cudaPtr = nullptr;
+
+    void destroy(nvvkpp::AllocatorVkExport& alloc)
+    {
+        alloc.destroy(bufVk);
+        CloseHandle(handle);
+    }
+};
 #pragma endregion
 
 class VContext
@@ -83,7 +117,7 @@ public:
     ~VContext() = default;
 
 #pragma region Void Methods
-    void CreateWindow(int width, int height, const char* name);
+    void CREATETHEFUCKINGWINDOW(int width, int height, const char* name);
     void SetupInstance();
     void SelectGPU();
     void createLogicalDevice();
@@ -114,6 +148,8 @@ public:
     void SetupDebugMessenger();
     void CleanUp();
     void UpdateObjects(std::vector<VObject>& objects);
+    void ConvertVulkan2Optix(const VkImage& vkIMG, OptixImage2D& opIMG);
+
 
     static void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
     static void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
@@ -196,10 +232,11 @@ public:
     const std::vector<const char*> validationLayers = {
         "VK_LAYER_KHRONOS_validation"
     };
-    const std::vector<const char*> deviceExtensions = {
+    const std::vector<const char*> deviceExtensions = 
+    {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
         VK_NV_RAY_TRACING_EXTENSION_NAME,
-        VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME
+        VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME,
     };
 
     //GLFW

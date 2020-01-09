@@ -1,4 +1,7 @@
 #include <VGame.h>
+//#include "basics.h"
+
+#include <optix_function_table_definition.h>
 
 void Game::InitAPI()
 {
@@ -6,7 +9,7 @@ void Game::InitAPI()
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
     GameInstance = new VContext;
-    GameInstance->CreateWindow(WIDTH, HEIGHT, "VEngine");
+    GameInstance->CREATETHEFUCKINGWINDOW(WIDTH, HEIGHT, "VEngine");
     GameInstance->SetupInstance();
     GameInstance->SetupDebugMessenger();
     GameInstance->SelectGPU();
@@ -24,6 +27,7 @@ void Game::InitAPI()
     GameInstance->setupRenderPass();
     GameInstance->createPipelineCache();
     GameInstance->setupFrameBuffer();
+    InitOptix();
     time.push_back(0.5f);
 }
 void Game::SetupGame()
@@ -34,10 +38,10 @@ void Game::SetupGame()
     (not working yet) Emissive = 3;*/
     
     VObject sphere2("sphere");
-    sphere2.m_mesh.LoadMesh("shaders/models/sphere.obj", true);
+    sphere2.m_mesh.LoadMesh("shaders/models/monkey.obj", true);
     sphere2.SetColor(0.9, 0.1, 0.1);
-    sphere2.SetMaterialType(1);
-    sphere2.SetReflectivity(0.9);
+    sphere2.SetMaterialType(2);
+    sphere2.SetReflectivity(0.0);
 
     sphere2.SetPosition({0, -4, 0});
     sphere2.Rotate({180, 0, 0});
@@ -77,12 +81,15 @@ void Game::GameLoop()
     float lastX = 0;
     float lastY = 0;
     glm::vec3 lastPos;
+    int frameCount = 0;
+    float lastFPS = glfwGetTime();
     while (!glfwWindowShouldClose(GameInstance->GetWindow()))
     {
+        float currentTime = glfwGetTime();
+        frameCount++;
         time[0] += 0.001f;
         glfwPollEvents();
 
-        //FindObject("house")->Rotate({0, 0.04f, 0});
 
         InputManager();
 
@@ -93,6 +100,7 @@ void Game::GameLoop()
         GameInstance->camera.Yaw -= (xpos - x) * sensivity;
 
         GameInstance->UpdateObjects(m_objects);
+        GameInstance->buildCommandbuffers();
         GameInstance->draw();
 
         if (GameInstance->camera.updated)
@@ -105,8 +113,15 @@ void Game::GameLoop()
 
             GameInstance->updateUniformBuffers(updateAccumulation);
         }
+        if ( currentTime - lastFPS >= 1.0 )
+        {
+            // Display the frame count here any way you want.
+            glfwSetWindowTitle(GameInstance->window,std::to_string(frameCount).c_str());
 
-        glfwSetWindowTitle(GameInstance->window, std::to_string(GameInstance->uniformData.data.y).c_str());
+            frameCount = 0;
+            lastFPS = currentTime;
+        }
+        //glfwSetWindowTitle(GameInstance->window, std::to_string(GameInstance->uniformData.data.y).c_str());
         sinus += 0.25f;
         GameInstance->UpdateTime(time);
         xpos = x;
@@ -140,5 +155,31 @@ void Game::InputManager()
 }
 void Game::CursorCallBack(GLFWwindow* window, double xpos, double ypos)
 {
-
 }
+void Game::DenoiseImage(const VkImage& imgIn, VkImage& imgOut)
+{
+    VkDeviceSize bufferSize = 1280 * 720 * 4 * sizeof(float);
+}
+void Game::InitOptix()
+{
+   /* cudaFree(nullptr);
+    CUcontext cuCtx;
+    CUresult  cuRes = cuCtxGetCurrent(&cuCtx);
+    if(cuRes != CUDA_SUCCESS)
+    {
+    std::cerr << "Error querying current context: error code " << cuRes << "\n";
+    }
+    OPTIX_CHECK(optixInit());
+    OPTIX_CHECK(optixDeviceContextCreate(cuCtx, nullptr, &m_optixDevice));
+    OPTIX_CHECK(optixDeviceContextSetLogCallback(m_optixDevice, context_log_cb, nullptr, 4));
+
+    OptixPixelFormat pixelFormat = OPTIX_PIXEL_FORMAT_FLOAT4;
+    size_t           sizeofPixel = sizeof(float4);
+
+
+    m_dOptions.inputKind   = OPTIX_DENOISER_INPUT_RGB;
+    m_dOptions.pixelFormat = pixelFormat;
+    OPTIX_CHECK(optixDenoiserCreate(m_optixDevice, &m_dOptions, &m_denoiser));
+    OPTIX_CHECK(optixDenoiserSetModel(m_denoiser, OPTIX_DENOISER_MODEL_KIND_HDR, nullptr, 0));*/
+}
+

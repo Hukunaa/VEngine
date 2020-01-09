@@ -143,14 +143,14 @@ bool getScattering(Payload rayHit, inout vec3 origin, inout vec3 dir, inout vec3
     return false;
 }
 
-const int SHADOW_RES = 6;
+const int SHADOW_RES = 4;
 float getEmitted(Payload ray, vec3 origin)
 {
     //TEST SPHERICAL LIGHT
     vec3 position = vec3(0, -400, -1200);
     float radius = 2;
     float amountOfLight = 0;
-    float intensity = 4;
+    float intensity = 3;
     for(int i = 0; i < SHADOW_RES; ++i)
     {
         vec3 rd = normalize(randomSphereDirection(seedRand));
@@ -190,7 +190,8 @@ void main()
 {
     //recursion to iteration
     vec3 color = vec3(0);
-    for(int k = 0; k < ubo.data.x; ++k)
+    for(int k = 0; k < 1; ++k)
+    //for(int k = 0; k < ubo.data.x; ++k)
     {
         const vec2 pixelCenter = (vec2(gl_LaunchIDNV.xy) + hash2(seedRand));
         seedRand =  pixelCenter.x * pixelCenter.y * time.t[0];
@@ -223,12 +224,6 @@ void main()
                     else
                         pixelColor += attenuation * getEmitted(hitRecord, forigin);
                 }
-                //lightAmount += getEmitted(hitRecord, forigin);
-               /* else
-                {
-                     pixelColor += vec3(0.75, 0.85, 1);//* getEmitted(hitRecord, forigin);
-                    break;
-                }*/
             }
             else
             {
@@ -245,21 +240,16 @@ void main()
         color += pixelColor; /// recursionTimes;
         //color *= lightAmount;
     }
-    color /= ubo.data.x;
-    float accumulate;
-    if(ubo.data.x != ubo.data.y)
+    //color /= ubo.data.x;
+    //float accumulate;
+    /*if(ubo.data.x != ubo.data.y)
         accumulate = 0;
     else
-        accumulate = 1;
-    vec3 accumulation = imageLoad(accImage, ivec2(gl_LaunchIDNV.xy)).rgb; //* accumulate;
-    vec3 finalColor = mix(accumulation, color, 1 / (ubo.data.y + 1));
-    //vec3 accumulation = mix(imageLoad(accImage, ivec2(gl_LaunchIDNV.xy)).rgb, color, 1 / (ubo.data.y + 1.0));
-    //vec3 accumulation = (imageLoad(accImage, ivec2(gl_LaunchIDNV.xy)).rgb + color) / ubo.data.y;
-    //vec3 accumulation = imageLoad(accImage, ivec2(gl_LaunchIDNV.xy)).rgb * float(accumulate) + color;
-    //color = accumulation * (1 / ubo.data.y);
-    //finalColor = Uncharted2ToneMapping(finalColor);
+        accumulate = 1;*/
+    //vec3 accumulation = imageLoad(accImage, ivec2(gl_LaunchIDNV.xy)).rgb; //* accumulate;
+   // vec3 finalColor = mix(accumulation, color, 1 / (ubo.data.y + 1));
     
-    imageStore(accImage, ivec2(gl_LaunchIDNV.xy), vec4(finalColor, 0));
+    //imageStore(accImage, ivec2(gl_LaunchIDNV.xy), vec4(finalColor, 0));
 
-    imageStore(ResultImage, ivec2(gl_LaunchIDNV.xy), vec4(finalColor, 0.0));
+    imageStore(ResultImage, ivec2(gl_LaunchIDNV.xy), vec4(color, 0.0));
 }

@@ -1,0 +1,147 @@
+The system is: Windows - 10.0.18363 - AMD64
+Compiling the C compiler identification source file "CMakeCCompilerId.c" succeeded.
+Compiler:  
+Build flags: 
+Id flags:  
+
+The output was:
+0
+Microsoft (R) Build Engine version 16.4.0+e901037fe pour .NET Framework
+Copyright (C) Microsoft Corporation. Tous droits r‚serv‚s.
+
+La g‚n‚ration a d‚marr‚ 08/01/2020 16:17:20.
+Projet "D:\VEngineNew\VEngine\VEngine\VEngine\include\build\CMakeFiles\3.16.2\CompilerIdC\CompilerIdC.vcxproj" sur le noud 1 (cibles par d‚faut).
+PrepareForBuild:
+  Cr‚ation du r‚pertoire "Debug\".
+  Cr‚ation du r‚pertoire "Debug\CompilerIdC.tlog\".
+InitializeBuildStatus:
+  Cr‚ation de "Debug\CompilerIdC.tlog\unsuccessfulbuild", car "AlwaysCreate" a ‚t‚ sp‚cifi‚.
+ClCompile:
+  C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.24.28314\bin\HostX64\x64\CL.exe /c /nologo /W0 /WX- /diagnostics:column /Od /D _MBCS /Gm- /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"Debug\\" /Fd"Debug\vc142.pdb" /Gd /TC /FC /errorReport:queue CMakeCCompilerId.c
+  CMakeCCompilerId.c
+Link:
+  C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.24.28314\bin\HostX64\x64\link.exe /ERRORREPORT:QUEUE /OUT:".\CompilerIdC.exe" /INCREMENTAL:NO /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /PDB:".\CompilerIdC.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:".\CompilerIdC.lib" /MACHINE:X64 Debug\CMakeCCompilerId.obj
+  CompilerIdC.vcxproj -> D:\VEngineNew\VEngine\VEngine\VEngine\include\build\CMakeFiles\3.16.2\CompilerIdC\.\CompilerIdC.exe
+PostBuildEvent:
+  for %%i in (cl.exe) do @echo CMAKE_C_COMPILER=%%~$PATH:i
+  :VCEnd
+  CMAKE_C_COMPILER=C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64\cl.exe
+FinalizeBuildStatus:
+  Suppression du fichier "Debug\CompilerIdC.tlog\unsuccessfulbuild".
+  Mise … jour de l'horodatage "Debug\CompilerIdC.tlog\CompilerIdC.lastbuildstate".
+G‚n‚ration du projet "D:\VEngineNew\VEngine\VEngine\VEngine\include\build\CMakeFiles\3.16.2\CompilerIdC\CompilerIdC.vcxproj" termin‚e (cibles par d‚faut).
+
+La g‚n‚ration a r‚ussi.
+    0 Avertissement(s)
+    0 Erreur(s)
+
+Temps ‚coul‚ 00:00:01.43
+
+
+Compilation of the C compiler identification source "CMakeCCompilerId.c" produced "CompilerIdC.exe"
+
+Compilation of the C compiler identification source "CMakeCCompilerId.c" produced "CompilerIdC.vcxproj"
+
+The C compiler identification is MSVC, found in "D:/VEngineNew/VEngine/VEngine/VEngine/include/build/CMakeFiles/3.16.2/CompilerIdC/CompilerIdC.exe"
+
+Compiling the CXX compiler identification source file "CMakeCXXCompilerId.cpp" succeeded.
+Compiler:  
+Build flags: 
+Id flags:  
+
+The output was:
+0
+Microsoft (R) Build Engine version 16.4.0+e901037fe pour .NET Framework
+Copyright (C) Microsoft Corporation. Tous droits r‚serv‚s.
+
+La g‚n‚ration a d‚marr‚ 08/01/2020 16:17:22.
+Projet "D:\VEngineNew\VEngine\VEngine\VEngine\include\build\CMakeFiles\3.16.2\CompilerIdCXX\CompilerIdCXX.vcxproj" sur le noud 1 (cibles par d‚faut).
+PrepareForBuild:
+  Cr‚ation du r‚pertoire "Debug\".
+  Cr‚ation du r‚pertoire "Debug\CompilerIdCXX.tlog\".
+InitializeBuildStatus:
+  Cr‚ation de "Debug\CompilerIdCXX.tlog\unsuccessfulbuild", car "AlwaysCreate" a ‚t‚ sp‚cifi‚.
+ClCompile:
+  C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.24.28314\bin\HostX64\x64\CL.exe /c /nologo /W0 /WX- /diagnostics:column /Od /D _MBCS /Gm- /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"Debug\\" /Fd"Debug\vc142.pdb" /Gd /TP /FC /errorReport:queue CMakeCXXCompilerId.cpp
+  CMakeCXXCompilerId.cpp
+Link:
+  C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.24.28314\bin\HostX64\x64\link.exe /ERRORREPORT:QUEUE /OUT:".\CompilerIdCXX.exe" /INCREMENTAL:NO /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /PDB:".\CompilerIdCXX.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:".\CompilerIdCXX.lib" /MACHINE:X64 Debug\CMakeCXXCompilerId.obj
+  CompilerIdCXX.vcxproj -> D:\VEngineNew\VEngine\VEngine\VEngine\include\build\CMakeFiles\3.16.2\CompilerIdCXX\.\CompilerIdCXX.exe
+PostBuildEvent:
+  for %%i in (cl.exe) do @echo CMAKE_CXX_COMPILER=%%~$PATH:i
+  :VCEnd
+  CMAKE_CXX_COMPILER=C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Tools\MSVC\14.24.28314\bin\Hostx64\x64\cl.exe
+FinalizeBuildStatus:
+  Suppression du fichier "Debug\CompilerIdCXX.tlog\unsuccessfulbuild".
+  Mise … jour de l'horodatage "Debug\CompilerIdCXX.tlog\CompilerIdCXX.lastbuildstate".
+G‚n‚ration du projet "D:\VEngineNew\VEngine\VEngine\VEngine\include\build\CMakeFiles\3.16.2\CompilerIdCXX\CompilerIdCXX.vcxproj" termin‚e (cibles par d‚faut).
+
+La g‚n‚ration a r‚ussi.
+    0 Avertissement(s)
+    0 Erreur(s)
+
+Temps ‚coul‚ 00:00:01.04
+
+
+Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "CompilerIdCXX.exe"
+
+Compilation of the CXX compiler identification source "CMakeCXXCompilerId.cpp" produced "CompilerIdCXX.vcxproj"
+
+The CXX compiler identification is MSVC, found in "D:/VEngineNew/VEngine/VEngine/VEngine/include/build/CMakeFiles/3.16.2/CompilerIdCXX/CompilerIdCXX.exe"
+
+Determining if the C compiler works passed with the following output:
+Change Dir: D:/VEngineNew/VEngine/VEngine/VEngine/include/build/CMakeFiles/CMakeTmp
+
+Run Build Command(s):C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/MSBuild/Current/Bin/MSBuild.exe cmTC_d646d.vcxproj /p:Configuration=Debug /p:Platform=x64 /p:VisualStudioVersion=16.0 /v:m && Microsoft (R) Build Engine version 16.4.0+e901037fe pour .NET Framework
+Copyright (C) Microsoft Corporation. Tous droits r‚serv‚s.
+
+  Compilateur d'optimisation Microsoft (R) C/C++ versionÿ19.24.28314 pour x64
+  testCCompiler.c
+  Copyright (C) Microsoft Corporation. Tous droits r‚serv‚s.
+  cl /c /Zi /W3 /WX- /diagnostics:column /Od /Ob0 /D WIN32 /D _WINDOWS /D "CMAKE_INTDIR=\"Debug\"" /D _MBCS /Gm- /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"cmTC_d646d.dir\Debug\\" /Fd"cmTC_d646d.dir\Debug\vc142.pdb" /Gd /TC /errorReport:queue D:\VEngineNew\VEngine\VEngine\VEngine\include\build\CMakeFiles\CMakeTmp\testCCompiler.c
+  cmTC_d646d.vcxproj -> D:\VEngineNew\VEngine\VEngine\VEngine\include\build\CMakeFiles\CMakeTmp\Debug\cmTC_d646d.exe
+
+
+
+Detecting C compiler ABI info compiled with the following output:
+Change Dir: D:/VEngineNew/VEngine/VEngine/VEngine/include/build/CMakeFiles/CMakeTmp
+
+Run Build Command(s):C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/MSBuild/Current/Bin/MSBuild.exe cmTC_cec36.vcxproj /p:Configuration=Debug /p:Platform=x64 /p:VisualStudioVersion=16.0 /v:m && Microsoft (R) Build Engine version 16.4.0+e901037fe pour .NET Framework
+Copyright (C) Microsoft Corporation. Tous droits r‚serv‚s.
+
+  Compilateur d'optimisation Microsoft (R) C/C++ versionÿ19.24.28314 pour x64
+  CMakeCCompilerABI.c
+  Copyright (C) Microsoft Corporation. Tous droits r‚serv‚s.
+  cl /c /Zi /W3 /WX- /diagnostics:column /Od /Ob0 /D WIN32 /D _WINDOWS /D "CMAKE_INTDIR=\"Debug\"" /D _MBCS /Gm- /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /Fo"cmTC_cec36.dir\Debug\\" /Fd"cmTC_cec36.dir\Debug\vc142.pdb" /Gd /TC /errorReport:queue "C:\Program Files\CMake\share\cmake-3.16\Modules\CMakeCCompilerABI.c"
+  cmTC_cec36.vcxproj -> D:\VEngineNew\VEngine\VEngine\VEngine\include\build\CMakeFiles\CMakeTmp\Debug\cmTC_cec36.exe
+
+
+
+Determining if the CXX compiler works passed with the following output:
+Change Dir: D:/VEngineNew/VEngine/VEngine/VEngine/include/build/CMakeFiles/CMakeTmp
+
+Run Build Command(s):C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/MSBuild/Current/Bin/MSBuild.exe cmTC_ad4d0.vcxproj /p:Configuration=Debug /p:Platform=x64 /p:VisualStudioVersion=16.0 /v:m && Microsoft (R) Build Engine version 16.4.0+e901037fe pour .NET Framework
+Copyright (C) Microsoft Corporation. Tous droits r‚serv‚s.
+
+  Compilateur d'optimisation Microsoft (R) C/C++ versionÿ19.24.28314 pour x64
+  Copyright (C) Microsoft Corporation. Tous droits r‚serv‚s.
+  testCXXCompiler.cxx
+  cl /c /Zi /W3 /WX- /diagnostics:column /Od /Ob0 /D WIN32 /D _WINDOWS /D "CMAKE_INTDIR=\"Debug\"" /D _MBCS /Gm- /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /GR /Fo"cmTC_ad4d0.dir\Debug\\" /Fd"cmTC_ad4d0.dir\Debug\vc142.pdb" /Gd /TP /errorReport:queue D:\VEngineNew\VEngine\VEngine\VEngine\include\build\CMakeFiles\CMakeTmp\testCXXCompiler.cxx
+  cmTC_ad4d0.vcxproj -> D:\VEngineNew\VEngine\VEngine\VEngine\include\build\CMakeFiles\CMakeTmp\Debug\cmTC_ad4d0.exe
+
+
+
+Detecting CXX compiler ABI info compiled with the following output:
+Change Dir: D:/VEngineNew/VEngine/VEngine/VEngine/include/build/CMakeFiles/CMakeTmp
+
+Run Build Command(s):C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/MSBuild/Current/Bin/MSBuild.exe cmTC_f736a.vcxproj /p:Configuration=Debug /p:Platform=x64 /p:VisualStudioVersion=16.0 /v:m && Microsoft (R) Build Engine version 16.4.0+e901037fe pour .NET Framework
+Copyright (C) Microsoft Corporation. Tous droits r‚serv‚s.
+
+  Compilateur d'optimisation Microsoft (R) C/C++ versionÿ19.24.28314 pour x64
+  Copyright (C) Microsoft Corporation. Tous droits r‚serv‚s.
+  CMakeCXXCompilerABI.cpp
+  cl /c /Zi /W3 /WX- /diagnostics:column /Od /Ob0 /D WIN32 /D _WINDOWS /D "CMAKE_INTDIR=\"Debug\"" /D _MBCS /Gm- /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Zc:inline /GR /Fo"cmTC_f736a.dir\Debug\\" /Fd"cmTC_f736a.dir\Debug\vc142.pdb" /Gd /TP /errorReport:queue "C:\Program Files\CMake\share\cmake-3.16\Modules\CMakeCXXCompilerABI.cpp"
+  cmTC_f736a.vcxproj -> D:\VEngineNew\VEngine\VEngine\VEngine\include\build\CMakeFiles\CMakeTmp\Debug\cmTC_f736a.exe
+
+
+

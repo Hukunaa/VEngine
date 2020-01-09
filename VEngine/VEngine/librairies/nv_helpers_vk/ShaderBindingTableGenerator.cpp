@@ -38,7 +38,6 @@ dispatch rays description.
 #include "VKHelpers.h"
 
 #include <algorithm>
-
 namespace nv_helpers_vk {
 
 //--------------------------------------------------------------------------------------------------

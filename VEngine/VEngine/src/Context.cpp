@@ -1,6 +1,4 @@
 #include <VContext.h>
-
-#include <algorithm>
 #include <array>
 #include <set>
 
@@ -9,7 +7,6 @@ const bool enableValidationLayers = false;
 #else
 const bool enableValidationLayers = true;
 #endif
-
 
 #define WIDTH 1280
 #define HEIGHT 720
@@ -103,86 +100,12 @@ bool VContext::checkDeviceExtensionSupport(VkPhysicalDevice device) const
     {
         requiredExtensions.erase(extension.extensionName);
     }
+    for (auto ext : requiredExtensions)
+        std::cout << ext << '\n';
 
     return requiredExtensions.empty();
 }
-/*void VContext::UpdateMesh(VMesh& p_mesh)
-{
-    //Set new build info for Acceleration Structure
-    AccelerationStructure newToplevelAcc;
-    CreateTopLevelAccelerationStructure(newToplevelAcc);
 
-    VkAccelerationStructureInfoNV buildInfo{};
-    buildInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
-    buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_NV;
-    buildInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_NV;
-    buildInfo.pGeometries = nullptr;
-    buildInfo.geometryCount = 0;
-    buildInfo.instanceCount = 1;
-
-    //p_mesh.UpdateTransform();
-
-    createBuffer(VK_BUFFER_USAGE_RAY_TRACING_BIT_NV, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        &p_mesh.meshBuffer,
-        sizeof(GeometryInstance),
-        &p_mesh.meshGeometry);
-
-    VkAccelerationStructureMemoryRequirementsInfoNV memoryRequirementsInfo{};
-    memoryRequirementsInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_INFO_NV;
-    memoryRequirementsInfo.type = VK_ACCELERATION_STRUCTURE_MEMORY_REQUIREMENTS_TYPE_BUILD_SCRATCH_NV;
-
-    VkMemoryRequirements2 memReqTopLevelAS;
-    memoryRequirementsInfo.accelerationStructure = newToplevelAcc.accelerationStructure;
-    vkGetAccelerationStructureMemoryRequirementsNV(device.logicalDevice, &memoryRequirementsInfo, &memReqTopLevelAS);
-
-    const VkDeviceSize scratchBufferSize = std::max( memReqBottomLevelAS.memoryRequirements.size, memReqTopLevelAS.memoryRequirements.size);
-
-    VBuffer::Buffer scratchBuffer;
-    createBuffer(
-        VK_BUFFER_USAGE_RAY_TRACING_BIT_NV,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        &scratchBuffer,
-        scratchBufferSize);
-
-    VkCommandBuffer cmdBuffer = createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
-
-    vkCmdBuildAccelerationStructureNV(
-    cmdBuffer,
-    &buildInfo,
-    p_mesh.meshBuffer.buffer,
-    0,
-    VK_FALSE,
-    newToplevelAcc.accelerationStructure,
-    nullptr,
-    scratchBuffer.buffer,
-    0);
-
-    VkMemoryBarrier memoryBarrier = Initializers::memoryBarrier();
-    memoryBarrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_NV | VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_NV;
-    memoryBarrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_NV | VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_NV;
-    vkCmdPipelineBarrier(cmdBuffer, 
-        VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV, 
-        VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_NV, 
-        0, 
-        1, 
-        &memoryBarrier, 
-        0, 
-        nullptr, 
-        0, 
-        nullptr);
-
-    vkCmdCopyAccelerationStructureNV(cmdBuffer, topLevelAS.accelerationStructure, 
-                                            newToplevelAcc.accelerationStructure, 
-                                            VK_COPY_ACCELERATION_STRUCTURE_MODE_CLONE_NV);
-
-    flushCommandBuffer(cmdBuffer, graphicsQueue, true);
-    vkFreeMemory(device.logicalDevice, newToplevelAcc.memory, nullptr);
-    vkDestroyAccelerationStructureNV(device.logicalDevice, newToplevelAcc.accelerationStructure, nullptr);
-    scratchBuffer.destroy();
-    p_mesh.meshBuffer.destroy();
-    
-
-}*/
 void VContext::SelectGPU()
 {
     device.physicalDevice = nullptr;
@@ -227,7 +150,7 @@ void VContext::SelectGPU()
 }
 #pragma endregion
 #pragma region Instance
-void VContext::CreateWindow(int width, int height, const char* name)
+void VContext::CREATETHEFUCKINGWINDOW(int width, int height, const char* name)
 {
      window = glfwCreateWindow(width, height, name, nullptr, nullptr);
 }
@@ -245,6 +168,7 @@ void VContext::SetupInstance()
     appInfo.pEngineName = "VRenderer";
     appInfo.engineVersion = VK_MAKE_VERSION(0, 0, 1);
     appInfo.apiVersion = VK_API_VERSION_1_0;
+    std::cout << appInfo.apiVersion << std::endl;
 
     VkInstanceCreateInfo createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -722,6 +646,58 @@ void VContext::UpdateObjects(std::vector<VObject>& objects)
     scratchBuffer.destroy();
     instanceBuffer.destroy();
 }
+void VContext::ConvertVulkan2Optix(const VkImage& vkIMG, OptixImage2D& opIMG)
+{
+    const VkCommandBuffer cmd_buffer = createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+    // Make the image layout eTransferSrcOptimal to copy to buffer
+    vk::CommandBuffer cmdBuffer;
+    cmdBuffer.begin({ vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
+
+    vk::ImageSubresourceRange subresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
+    nvvkpp::image::setImageLayout(cmd_buffer, vkIMG, vk::ImageLayout::eGeneral,
+        vk::ImageLayout::eTransferSrcOptimal, subresourceRange);
+
+    // Copy the image to the buffer
+    vk::Buffer pixelBufferOut;
+    vk::BufferImageCopy copyRegion;
+    copyRegion.setImageSubresource({ vk::ImageAspectFlagBits::eColor, 0, 0, 1 });
+    copyRegion.setImageExtent(vk::Extent3D(WIDTH, HEIGHT, 1));
+    cmdBuffer.copyImageToBuffer(vkIMG, vk::ImageLayout::eTransferSrcOptimal, pixelBufferOut, { copyRegion });
+
+    // Put back the image as it was
+    nvvkpp::image::setImageLayout(cmdBuffer, vkIMG, vk::ImageLayout::eTransferSrcOptimal,
+                                  vk::ImageLayout::eGeneral, subresourceRange);
+    
+
+    //--------------------------------------------------------------------------------------------------
+    // Get the Vulkan buffer and create the Cuda equivalent using the memory allocated in Vulkan
+    //
+    vk::Device dev(device.logicalDevice);
+    BufferCuda cudaBuffer;
+    VkMemoryGetWin32HandleInfoKHR info;
+    info.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+    info.memory = cudaBuffer.bufVk.allocation;
+
+    vkGetMemoryWin32HandleKHR(dev, &info, &cudaBuffer.handle);
+
+   // auto req = dev.getBufferMemoryRequirements(cudaBuffer.bufVk.buffer);
+
+    /*cudaExternalMemoryHandleDesc cudaExtMemHandleDesc{};
+    cudaExtMemHandleDesc.type = cudaExternalMemoryHandleTypeOpaqueWin32;
+    cudaExtMemHandleDesc.handle.win32.handle = buf.handle;
+    cudaExtMemHandleDesc.size = req.size;
+
+    cudaExternalMemory_t cudaExtMemVertexBuffer{};
+    cudaError_t          result;
+    result = cudaImportExternalMemory(&cudaExtMemVertexBuffer, &cudaExtMemHandleDesc);
+
+    cudaExternalMemoryBufferDesc cudaExtBufferDesc{};
+    cudaExtBufferDesc.offset = 0;
+    cudaExtBufferDesc.size = req.size;
+    cudaExtBufferDesc.flags = 0;
+
+    cudaExternalMemoryGetMappedBuffer(&buf.cudaPtr, cudaExtMemVertexBuffer, &cudaExtBufferDesc);*/
+}
 #pragma endregion
 #pragma region Extensions
 std::vector<const char*> VContext::GetRequieredExtensions()
@@ -741,7 +717,6 @@ std::vector<const char*> VContext::GetRequieredExtensions()
     }
 
     extensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
-
 
     return extensions;
 }
@@ -1312,7 +1287,6 @@ void VContext::createScene(std::vector<VObject>& objects)
         buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_NV;
         buildInfo.geometryCount = 1;
         buildInfo.pGeometries = &geometry;
-
         //Build BLAS for specific object
         vkCmdBuildAccelerationStructureNV(
             cmdBuffer,
@@ -2080,51 +2054,6 @@ void VContext::buildCommandbuffers()
         const VkDeviceSize bindingOffsetHitShader = rayTracingProperties.shaderGroupHandleSize * INDEX_CLOSEST_HIT;
         const VkDeviceSize bindingStride = rayTracingProperties.shaderGroupHandleSize;
 
-        /*Tools::setImageLayout(
-            commandBuffers[i],
-            accImage.image,
-            VK_IMAGE_LAYOUT_GENERAL,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            subresource_range,
-            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
-
-        // Prepare ray tracing output image as transfer source
-        Tools::setImageLayout(
-            commandBuffers[i],
-            storageImage.image,
-            VK_IMAGE_LAYOUT_GENERAL,
-            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-            subresource_range,
-            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
-
-        VkImageCopy accImageCopy{};
-        accImageCopy.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
-        accImageCopy.srcOffset = { 0, 0, 0 };
-        accImageCopy.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
-        accImageCopy.dstOffset = { 0, 0, 0 };
-        accImageCopy.extent = { WIDTH, HEIGHT, 1 };
-        vkCmdCopyImage(commandBuffers[i], storageImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, accImage.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &accImageCopy);
-
-         Tools::setImageLayout(
-            commandBuffers[i],
-            storageImage.image,
-            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-            VK_IMAGE_LAYOUT_GENERAL,
-            subresource_range,
-            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
-
-         Tools::setImageLayout(
-            commandBuffers[i],
-            accImage.image,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            VK_IMAGE_LAYOUT_GENERAL,
-            subresource_range,
-            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);*/
-
         vkCmdTraceRaysNV(commandBuffers[i],
             mShaderBindingTable.buffer, bindingOffsetRayGenShader,
             mShaderBindingTable.buffer, bindingOffsetMissShader, bindingStride,
@@ -2287,7 +2216,6 @@ void VContext::setupRayTracingSupport(std::vector<VObject>& objects, std::vector
 
 
     createDescriptorSets();
-    buildCommandbuffers();
 }
 
 void VContext::prepareFrame()
