@@ -46,7 +46,7 @@ public:
 
     //BufferCuda   m_pixelBufferIn;
     //BufferCuda   m_pixelBufferOut;
-
+    bool mouseControl = false;
     std::vector<VObject> m_objects;
     std::vector<VLight> m_lights;
     std::vector<int> trianglesNumber;

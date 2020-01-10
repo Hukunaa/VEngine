@@ -38,15 +38,26 @@ void Game::SetupGame()
     (not working yet) Emissive = 3;*/
     
     VObject sphere2("sphere");
-    sphere2.m_mesh.LoadMesh("shaders/models/monkey.obj", true);
-    sphere2.SetColor(0.9, 0.1, 0.1);
-    sphere2.SetMaterialType(2);
-    sphere2.SetReflectivity(0.0);
+    sphere2.m_mesh.LoadMesh("shaders/models/sphere.obj", true);
+    sphere2.SetColor(0.9, 0.2, 0.2);
+    sphere2.SetMaterialType(1);
+    sphere2.SetReflectivity(0.9);
 
-    sphere2.SetPosition({0, -4, 0});
+    sphere2.SetPosition({0, 0, 5});
     sphere2.Rotate({180, 0, 0});
-    sphere2.SetScale(2);
+    sphere2.SetScale(3);
     m_objects.push_back(sphere2);
+
+    VObject sphere3("sphere2");
+    sphere3.m_mesh.LoadMesh("shaders/models/sphere.obj", true);
+    sphere3.SetColor(0.9, 0.2, 0.9);
+    sphere3.SetMaterialType(2);
+    sphere3.SetReflectivity(0.1);
+
+    sphere3.SetPosition({ -3, -4, 6 });
+    sphere3.Rotate({ 180, 0, 0 });
+    sphere3.SetScale(1.5);
+    m_objects.push_back(sphere3);
 
     VObject monkey("house");
     monkey.m_mesh.LoadMesh("shaders/models/Pantheon.obj", true);
@@ -60,7 +71,7 @@ void Game::SetupGame()
 
     VObject plane("floor");
     plane.m_mesh.LoadMesh("shaders/models/plane.obj", true);
-    plane.SetColor(123.0/255.0,192.0/255.0,67.0/255.0);
+    plane.SetColor(0.3,0.95,0.2);
     plane.SetMaterialType(1);
 
     plane.SetPosition({0, -1, 0});
@@ -95,10 +106,15 @@ void Game::GameLoop()
 
 
         double x, y;
+        x = y = 0;
         glfwGetCursorPos( GameInstance->window, &x, &y );
-        GameInstance->camera.Pitch -= (ypos - y) * sensivity;
-        GameInstance->camera.Yaw -= (xpos - x) * sensivity;
 
+        if (mouseControl)
+        {
+            GameInstance->camera.Pitch -= (ypos - y) * sensivity;
+            GameInstance->camera.Yaw -= (xpos - x) * sensivity;
+        }
+        //FindObject("sphere2")->SetPosition(glm::vec3( -3, -4, 1 ) + glm::vec3(cos(sinus * 0.5) * 2, 0, sin(sinus * 0.5) * 2));
         GameInstance->UpdateObjects(m_objects);
         GameInstance->buildCommandbuffers();
         GameInstance->draw();
@@ -152,6 +168,10 @@ void Game::InputManager()
     {
         GameInstance->camera.setPosition(GameInstance->camera.position + GameInstance->camera.Right * moveSpeed);
     }
+    if (glfwGetKey(GameInstance->window, GLFW_KEY_F1) == GLFW_PRESS)
+    {
+        mouseControl = !mouseControl;
+    }
 }
 void Game::CursorCallBack(GLFWwindow* window, double xpos, double ypos)
 {
@@ -162,7 +182,7 @@ void Game::DenoiseImage(const VkImage& imgIn, VkImage& imgOut)
 }
 void Game::InitOptix()
 {
-   /* cudaFree(nullptr);
+    cudaFree(nullptr);
     CUcontext cuCtx;
     CUresult  cuRes = cuCtxGetCurrent(&cuCtx);
     if(cuRes != CUDA_SUCCESS)
@@ -180,6 +200,6 @@ void Game::InitOptix()
     m_dOptions.inputKind   = OPTIX_DENOISER_INPUT_RGB;
     m_dOptions.pixelFormat = pixelFormat;
     OPTIX_CHECK(optixDenoiserCreate(m_optixDevice, &m_dOptions, &m_denoiser));
-    OPTIX_CHECK(optixDenoiserSetModel(m_denoiser, OPTIX_DENOISER_MODEL_KIND_HDR, nullptr, 0));*/
+    OPTIX_CHECK(optixDenoiserSetModel(m_denoiser, OPTIX_DENOISER_MODEL_KIND_HDR, nullptr, 0));
 }
 

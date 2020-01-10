@@ -4,7 +4,7 @@
 #define M_PI 3.1415926535897932384626433832795
 #define GAMMA 2.2
 #define INV_GAMMA 0.45454545454545453
-#define BOUNCE_COUNT 6
+#define BOUNCE_COUNT 4
 
 layout(set = 0, binding = 0) uniform accelerationStructureNV Scene;
 layout(set = 0, binding = 1, rgba8) uniform image2D ResultImage;
@@ -39,6 +39,9 @@ const uint rayFlags = gl_RayFlagsOpaqueNV;
 const uint cullMask = 0xFF;
 const float tmin = 0.0001;
 const float tmax = 10000;
+
+vec3 position = vec3(0, -400, -1200);
+float radius = 3;
 
 float seedRand = 0;
 float rand() { return fract(sin(seedRand++)*43758.5453123); }
@@ -83,7 +86,7 @@ vec3 hash3(inout float seed)
     return vec3(rz & uvec3(0x7fffffffU))/float(0x7fffffff);
 }
 
-vec3 cosWeightedRandomHemisphereDirection( const vec3 n, inout float seed ) {
+vec4 cosWeightedRandomHemisphereDirection( const vec3 n, inout float seed, const vec3 rayDir) {
   	vec2 r = hash2(seed);
     
 	vec3  uu = normalize( cross( n, vec3(0.0,1.0,1.0) ) );
@@ -95,7 +98,7 @@ vec3 cosWeightedRandomHemisphereDirection( const vec3 n, inout float seed ) {
 	float rz = sqrt( 1.0-r.y );
 	vec3  rr = vec3( rx*uu + ry*vv + rz*n );
     
-    return normalize( rr );
+    return normalize( vec4(rr, dot(n, -rayDir)) );
 }
 
 vec3 randomSphereDirection(inout float seed) {
@@ -117,16 +120,17 @@ vec3 getEmitted(Payload rayHit)
         return vec3(0);
 }
 
-bool getScattering(Payload rayHit, inout vec3 origin, inout vec3 dir, inout vec3 attenuation)
+bool getScattering(Payload rayHit, inout vec3 origin, inout vec3 dir, inout vec3 attenuation, inout float cosTheta)
 {
     //LAMBERTIAN
     if(rayHit.matSpecs.x == 1)
     {
         vec3 forigin = rayHit.pointHit;
-        vec3 fdir = normalize(randomHemisphereDirection(rayHit.pointNormal, seedRand));
+        vec4 fdir = normalize(cosWeightedRandomHemisphereDirection(rayHit.pointNormal, seedRand, dir));
         attenuation = rayHit.pointColor;
+        cosTheta = fdir.w;
         origin = forigin;
-        dir = fdir;
+        dir = fdir.xyz;
         return true;
     }
     //METAL
@@ -136,6 +140,7 @@ bool getScattering(Payload rayHit, inout vec3 origin, inout vec3 dir, inout vec3
         vec3 forigin = rayHit.pointHit;
         vec3 fdir = normalize(rd + (1 - rayHit.matSpecs.y) * randomHemisphereDirection(rayHit.pointNormal, seedRand));
         attenuation = rayHit.pointColor;
+        cosTheta = 1;
         origin = forigin;
         dir = fdir;
         return true;
@@ -146,24 +151,6 @@ bool getScattering(Payload rayHit, inout vec3 origin, inout vec3 dir, inout vec3
 const int SHADOW_RES = 4;
 float getEmitted(Payload ray, vec3 origin)
 {
-    //TEST SPHERICAL LIGHT
-    vec3 position = vec3(0, -400, -1200);
-    float radius = 2;
-    float amountOfLight = 0;
-    float intensity = 3;
-    for(int i = 0; i < SHADOW_RES; ++i)
-    {
-        vec3 rd = normalize(randomSphereDirection(seedRand));
-        vec3 pointOnSphere = position + rd * radius;
-        vec3 dir = normalize(pointOnSphere - ray.pointHit);
-        shadowed = true;
-        traceNV(Scene, gl_RayFlagsTerminateOnFirstHitNV | gl_RayFlagsOpaqueNV| gl_RayFlagsSkipClosestHitShaderNV, cullMask, 0, 0, 0, ray.pointHit, tmin, dir, tmax, 2);
-        if(!shadowed)
-            amountOfLight += (intensity * dot(dir, ray.pointNormal)); /// (distance(position, ray.pointHit) * distance(position, ray.pointHit));
-    }
-
-    amountOfLight /= SHADOW_RES;
-    return amountOfLight;
 
     //TEST AREA LIGHT
     /*float sizeX = 6;
@@ -185,13 +172,31 @@ float getEmitted(Payload ray, vec3 origin)
 
         }
     }*/
+
+     //TEST SPHERICAL LIGHT
+    float amountOfLight = 0;
+    float intensity = 9;
+    for(int i = 0; i < SHADOW_RES; ++i)
+    {
+        vec3 rd = normalize(randomSphereDirection(seedRand));
+        vec3 pointOnSphere = position + rd * radius;
+        vec3 dir = normalize(pointOnSphere - ray.pointHit);
+        shadowed = true;
+        traceNV(Scene, gl_RayFlagsTerminateOnFirstHitNV | gl_RayFlagsOpaqueNV| gl_RayFlagsSkipClosestHitShaderNV, cullMask, 0, 0, 0, ray.pointHit, tmin, dir, tmax, 2);
+        if(!shadowed)
+            amountOfLight += (intensity); /// (distance(position, ray.pointHit) * distance(position, ray.pointHit));
+    }
+
+    amountOfLight /= SHADOW_RES;
+    return amountOfLight;
+
 }
 void main() 
 {
     //recursion to iteration
     vec3 color = vec3(0);
-    for(int k = 0; k < 1; ++k)
-    //for(int k = 0; k < ubo.data.x; ++k)
+    //for(int k = 0; k < 1; ++k)
+    for(int k = 0; k < ubo.data.x; ++k)
     {
         const vec2 pixelCenter = (vec2(gl_LaunchIDNV.xy) + hash2(seedRand));
         seedRand =  pixelCenter.x * pixelCenter.y * time.t[0];
@@ -205,51 +210,67 @@ void main()
         vec3 forigin = vec3(origin.xyz);
         vec3 fdir = vec3(direction.xyz);
 
-        vec3 pixelColor = vec3(0);
-        float lightAmount = 0;
         Payload hitRecord;
-        int recursionTimes = 0;
+
+        vec3 pixelColor = vec3(0);
+        vec3 colorFactor = vec3(1);
+        float lightAmount = 0;
+        vec3 baseAlbedo = vec3(0);
+        float pdf = 1 / (2 * M_PI);
+
         for(int i = 0; i < BOUNCE_COUNT; ++i)
         {
-            recursionTimes++;
             traceNV(Scene, rayFlags, cullMask, 0, 0, 0, forigin, tmin, fdir, tmax, payloadLocation);
             hitRecord = Result;
             if(hitRecord.hasHit)
             {
                 vec3 attenuation;
-                if(getScattering(hitRecord, forigin, fdir, attenuation))
+                float cosT;
+                if(getScattering(hitRecord, forigin, fdir, attenuation, cosT))
                 {
                     if(i == 0)
-                        pixelColor = attenuation * getEmitted(hitRecord, forigin);
-                    else
-                        pixelColor += attenuation * getEmitted(hitRecord, forigin);
+                        baseAlbedo = attenuation;
+
+                    colorFactor *= attenuation;
+
+                    //lightAmount += getEmitted(hitRecord, forigin);
                 }
+
+                //float cos_a_max = sqrt(1. - clamp(radius * radius / 1, 0., 1.));
+                //float weight = 10. * (1. - cos_a_max);
+                pixelColor += (colorFactor / M_PI) * getEmitted(hitRecord, forigin) * (cosT / pdf);
+                //pixelColor += (colorFactor * getEmitted(hitRecord, forigin) / (cosT / M_PI));// * clamp(dot( nld, normal ), 0., 1.));
+
+                float roulette = max(colorFactor.x, max(colorFactor.y, colorFactor.z));
+                if(hash2(seedRand).x > roulette)
+                    break;
+
+                colorFactor *= 1 / roulette;
             }
             else
             {
                 if(i == 0)
+                {
                     pixelColor = hitRecord.pointColor;
+                    lightAmount = 5;
+                }
                 else
                 {
-                    pixelColor +=  hitRecord.pointColor * 0.2;
-                    recursionTimes++;
+                    pixelColor += hitRecord.pointColor * colorFactor;
+                    //lightAmount += 5;
                 }
                 break;
             }
         }
+        //lightAmount /= BOUNCE_COUNT;
+        pixelColor /= BOUNCE_COUNT;
         color += pixelColor; /// recursionTimes;
-        //color *= lightAmount;
     }
-    //color /= ubo.data.x;
-    //float accumulate;
-    /*if(ubo.data.x != ubo.data.y)
-        accumulate = 0;
-    else
-        accumulate = 1;*/
-    //vec3 accumulation = imageLoad(accImage, ivec2(gl_LaunchIDNV.xy)).rgb; //* accumulate;
-   // vec3 finalColor = mix(accumulation, color, 1 / (ubo.data.y + 1));
+    color /= ubo.data.x;
+     vec3 accumulation = imageLoad(accImage, ivec2(gl_LaunchIDNV.xy)).rgb; //* accumulate;
+     vec3 finalColor = mix(accumulation, color, 1 / (ubo.data.y + 1));
     
-    //imageStore(accImage, ivec2(gl_LaunchIDNV.xy), vec4(finalColor, 0));
+    imageStore(accImage, ivec2(gl_LaunchIDNV.xy), vec4(finalColor, 0));
 
-    imageStore(ResultImage, ivec2(gl_LaunchIDNV.xy), vec4(color, 0.0));
+    imageStore(ResultImage, ivec2(gl_LaunchIDNV.xy), vec4(finalColor, 0.0));
 }

@@ -148,8 +148,8 @@ public:
     void SetupDebugMessenger();
     void CleanUp();
     void UpdateObjects(std::vector<VObject>& objects);
-    void ConvertVulkan2Optix(const VkImage& vkIMG, OptixImage2D& opIMG);
-
+    void ConvertVulkan2Optix(const VkImage& vkIMG, OptixImage2D& opIMG, VkCommandBuffer& cmd_buffer);
+    HANDLE getVulkanMemoryHandle(VkDevice device, VkDeviceMemory memory);
 
     static void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
     static void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
@@ -237,6 +237,10 @@ public:
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
         VK_NV_RAY_TRACING_EXTENSION_NAME,
         VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME,
+        VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME,
+        VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME,
+        VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME,
+        VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME
     };
 
     //GLFW
@@ -283,6 +287,14 @@ public:
 
     uint32_t indexCount{};
 
+    nvvkpp::AllocatorVkExport m_alloc;
+    vk::Device dev;
+    vk::Buffer pixelBufferOut;
+    vk::MemoryAllocateInfo memAllocPixelBuffer;
+    vk::MemoryRequirements memReqsPixelBuffer;
+    vk::DeviceMemory memoryPixelBuffer;
+    BufferCuda cudaBuffer;
+
     VBuffer::Buffer mShaderBindingTable;
     VBuffer::Buffer vertexBuffer;
     VBuffer::Buffer indexBuffer;
@@ -316,7 +328,7 @@ public:
         VkDeviceMemory mem;
         VkImageView view;
     } depthStencil{};
-
+    int* fd;
     std::vector<float> t{};
 #pragma endregion
 };
