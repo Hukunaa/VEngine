@@ -62,13 +62,13 @@ public:
     }
     void SetMaterialType(int type)
     {
-        m_material.colorAndRoughness.w = type;
+        m_material.ior.x = type;
     }
 
     //Only if material type is "2"
     void SetReflectivity(float factor)
     {
-        m_material.ior.x = factor;
+        m_material.ior.y = factor;
     }
 
     const char* GetName() const

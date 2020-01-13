@@ -1,8 +1,13 @@
 #pragma once
+#include <optional>
 #include <optix_stubs.h>
 #include <basics.h>
 #include <VContext.h>
 #include <VLight.h>
+
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_vulkan.h>
 
 class Game
 {
@@ -19,7 +24,7 @@ public:
     static void CursorCallBack(GLFWwindow *window, double xpos, double ypos );
     void DenoiseImage(const VkImage& imgIn, VkImage& imgOut);
     void InitOptix();
-
+    void SetupIMGUI();
     VObject* FindObject(const char* name)
     {
         for(auto& obj : m_objects)
@@ -33,19 +38,6 @@ public:
 
     VContext* GameInstance;
 
-    OptixDeviceContext m_optixDevice;
-    OptixDenoiser        m_denoiser{nullptr};
-    OptixDenoiserOptions m_dOptions{};
-    OptixDenoiserSizes   m_dSizes{};
-    CUdeviceptr          m_dState{0};
-    CUdeviceptr          m_dScratch{0};
-    CUdeviceptr          m_dIntensity{0};
-    CUdeviceptr          m_dMinRGB{0};
-
-    //nvvkpp::AllocatorVkExport m_alloc;
-
-    //BufferCuda   m_pixelBufferIn;
-    //BufferCuda   m_pixelBufferOut;
     bool mouseControl = false;
     std::vector<VObject> m_objects;
     std::vector<VLight> m_lights;

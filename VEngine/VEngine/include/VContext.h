@@ -5,7 +5,6 @@
 #include <optional>
 #include <vector>
 
-//#define VK_USE_PLATFORM_WIN32_KHR
 #include <windows.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -16,19 +15,23 @@
 #include <VTools.h>
 #include <VObject.h>
 
-#include <vulkan/vulkan.h>
+//#include <vulkan/vulkan.h>
+//#define VK_USE_PLATFORM_WIN32_KHR
 #include <vulkan/vulkan.hpp>
 #include <vulkan/vulkan_win32.h>
 
 #include <cuda_runtime.h>
 #include <cuda.h>
 #include <optix.h>
+#include <optix_stubs.h>
+#include <optix_types.h>
+#include <basics.h>
 
 #include <nvvkpp/allocator_dedicated_vkpp.hpp>
 #include <nvvkpp/allocator_dma_vkpp.hpp>
 #include <nvvkpp/images_vkpp.hpp>
 #include <nvvkpp/commands_vkpp.hpp>
-
+#include <nvvkpp/utilities_vkpp.hpp>
 #pragma region Structures
 struct Semaphore {
     // Swap chain image presentation
@@ -148,9 +151,17 @@ public:
     void SetupDebugMessenger();
     void CleanUp();
     void UpdateObjects(std::vector<VObject>& objects);
-    void ConvertVulkan2Optix(const VkImage& vkIMG, OptixImage2D& opIMG, VkCommandBuffer& cmd_buffer);
+    
+    void InitOptix();
+    void AllocateBuffers();
+    void ConvertVulkan2Optix(VkImage& vkIMG, vk::Buffer& pixelBuffer);
+    void ConvertOptix2Vulkan(VkImage& vkIMG, vk::Buffer& pixelBuffer);
+    void DenoiseImage();
     HANDLE getVulkanMemoryHandle(VkDevice device, VkDeviceMemory memory);
-
+    void exportToCudaPointer(BufferCuda& buf);
+    void CreateImageBuffer(vk::Buffer& buf, vk::MemoryAllocateInfo& bufAlloc, vk::MemoryRequirements& bufReqs, vk::DeviceMemory& bufMemory, vk::BufferUsageFlags usage);
+    
+    
     static void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
     static void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
     static void CHECK_ERROR(VkResult result);
@@ -250,6 +261,7 @@ public:
 
     VDevice::Device device;
 
+    QueueFamilyIndices queueFamily;
     VkQueue graphicsQueue{};
     VkQueue presentQueue{};
 
@@ -269,10 +281,12 @@ public:
 
     //SwapChain
     SwapChain swapChain;
+    uint32_t minImageCount;
     std::vector<VkFramebuffer> swapChainFramebuffers;
 
     //RenderPass
     VkRenderPass renderPass{};
+    VkRenderPass imGuiRenderPass{};
 
     //Rendering Pipeline
     VkPipeline Rpipeline{};
@@ -287,13 +301,6 @@ public:
 
     uint32_t indexCount{};
 
-    nvvkpp::AllocatorVkExport m_alloc;
-    vk::Device dev;
-    vk::Buffer pixelBufferOut;
-    vk::MemoryAllocateInfo memAllocPixelBuffer;
-    vk::MemoryRequirements memReqsPixelBuffer;
-    vk::DeviceMemory memoryPixelBuffer;
-    BufferCuda cudaBuffer;
 
     VBuffer::Buffer mShaderBindingTable;
     VBuffer::Buffer vertexBuffer;
@@ -328,7 +335,35 @@ public:
         VkDeviceMemory mem;
         VkImageView view;
     } depthStencil{};
-    int* fd;
+    HANDLE fd;
     std::vector<float> t{};
+
+
+    OptixDeviceContext m_optixDevice;
+    OptixDenoiser        m_denoiser{ nullptr };
+    OptixDenoiserOptions m_dOptions{};
+    OptixDenoiserSizes   m_dSizes{};
+    CUdeviceptr          m_dState{ 0 };
+    CUdeviceptr          m_dScratch{ 0 };
+    CUdeviceptr          m_dIntensity{ 0 };
+    CUdeviceptr          m_dMinRGB{ 0 };
+    cudaStream_t cudaStream;
+    nvvkpp::AllocatorVkExport m_alloc;
+
+    BufferCuda   m_pixelBufferIn;
+    BufferCuda   m_pixelBufferOut;
+
+    vk::Device dev;
+
+    vk::Buffer pixelBufferOut;
+    vk::MemoryAllocateInfo memAllocPixelBufferOut;
+    vk::MemoryRequirements memReqsPixelBufferOut;
+    vk::DeviceMemory memoryPixelBufferOut;
+
+    vk::Buffer pixelBufferIn;
+    vk::MemoryAllocateInfo memAllocPixelBufferIn;
+    vk::MemoryRequirements memReqsPixelBufferIn;
+    vk::DeviceMemory memoryPixelBufferIn;
+
 #pragma endregion
 };

@@ -1,19 +1,27 @@
 #version 460
 #extension GL_NV_ray_tracing : require
 
-struct Payload
+struct ObjInfo
 {
-    vec3 pointColor;
-    vec3 pointNormal;
-    vec3 matSpecs;
-    vec3 pointHit;
-    bool hasHit;
-    //vec3 pointTangent;
+    vec3 albedo;
+    vec3 normal;
+    vec3 hitPoint;
+    vec3 material;
+    bool isValid;
 };
 
-layout(location = 0) rayPayloadInNV Payload Result;
+struct Payload
+{
+    ObjInfo objInfos;
+};
+
+layout(location = 0) rayPayloadInNV Payload payloadData;
+
 void main() 
 {
-    Result.hasHit = false;
-    Result.pointColor = vec3(0.53, 0.81, 0.92);
+    payloadData.objInfos.isValid = false;
+    payloadData.objInfos.albedo = vec3(0.53, 0.81, 0.92);
+    payloadData.objInfos.hitPoint = vec3(0);
+    payloadData.objInfos.normal = vec3(0);
+    payloadData.objInfos.material = vec3(0);
 }

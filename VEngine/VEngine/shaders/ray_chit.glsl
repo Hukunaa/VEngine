@@ -10,16 +10,27 @@ layout(binding = 2, set = 0) uniform CamData
     
 } ubo;
 
-struct Payload
+struct ObjInfo
 {
-    vec3 pointColor;
-    vec3 pointNormal;
-    vec3 matSpecs;
-    vec3 pointHit;
-    bool hasHit;
+    vec3 albedo;
+    vec3 normal;
+    vec3 hitPoint;
+    vec3 material;
+    bool isValid;
 };
 
-layout(location = 0) rayPayloadInNV Payload Result;
+struct Payload
+{
+    ObjInfo objInfos;
+};
+
+layout(location = 0) rayPayloadInNV Payload payloadData;
+
+const uint rayFlags = gl_RayFlagsOpaqueNV;
+const uint cullMask = 0xFF;
+const float tmin = 0.0001;
+const float tmax = 50;
+
 hitAttributeNV vec3 HitAttribs;
 
 struct Vertex
@@ -27,11 +38,6 @@ struct Vertex
     vec3 pos;
     vec3 normal;
     int id;
-};
-
-struct MaterialData
-{
-    vec4 colorandRoughness;
 };
 
 layout(binding = 3, set = 0) buffer Materials
@@ -59,6 +65,7 @@ Vertex getVertex(uint index)
     v.id = int(d0.w);
     return v;
 }
+
 void main() 
 {
     //BARYCENTRICS COORDS
@@ -79,17 +86,15 @@ void main()
     normal = vec3(normalize(gl_ObjectToWorldNV * vec4(normal, 0)));
 
     //GET MATERIAL DATA FROM OBJECT
-    Result.matSpecs.z = 0;
     vec4 matData = materials.m[2 * gl_InstanceID];
     vec4 matData2 = materials.m[2 * gl_InstanceID + 1];
     vec3 origin = gl_WorldRayOriginNV + (gl_WorldRayDirectionNV * gl_HitTNV) + normal * 0.0001;
 
-    Result.hasHit = true;
-    Result.pointHit = origin;
-    Result.pointNormal = normal;
-    Result.matSpecs.x = matData.w;
-    Result.matSpecs.y = matData2.x;
-    Result.matSpecs.z = matData2.y;
-    Result.pointColor = matData.xyz;
+    
+    payloadData.objInfos.albedo = matData.xyz;
+    payloadData.objInfos.normal = normal;
+    payloadData.objInfos.hitPoint = origin;
+    payloadData.objInfos.isValid = true;
+    payloadData.objInfos.material = matData2.xyz;
     //Result.lightReceived = color;
 }

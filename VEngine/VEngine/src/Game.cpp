@@ -1,8 +1,6 @@
 #include <VGame.h>
 //#include "basics.h"
 
-#include <optix_function_table_definition.h>
-
 void Game::InitAPI()
 {
     glfwInit();
@@ -15,7 +13,6 @@ void Game::InitAPI()
     GameInstance->SelectGPU();
     GameInstance->createLogicalDevice();
 
-    //glfwSetKeyCallback(GameInstance->window, InputManager);
     glfwSetInputMode(GameInstance->window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetCursorPosCallback( GameInstance->window, CursorCallBack);
     GameInstance->initSwapChain();
@@ -27,7 +24,8 @@ void Game::InitAPI()
     GameInstance->setupRenderPass();
     GameInstance->createPipelineCache();
     GameInstance->setupFrameBuffer();
-    InitOptix();
+    //GameInstance->InitOptix();
+
     time.push_back(0.5f);
 }
 void Game::SetupGame()
@@ -39,23 +37,22 @@ void Game::SetupGame()
     
     VObject sphere2("sphere");
     sphere2.m_mesh.LoadMesh("shaders/models/sphere.obj", true);
-    sphere2.SetColor(0.9, 0.2, 0.2);
-    sphere2.SetMaterialType(1);
-    sphere2.SetReflectivity(0.9);
+    sphere2.SetColor(0.9, 0.9, 0.9);
+    sphere2.SetMaterialType(2);
+    sphere2.SetReflectivity(0.5);
 
-    sphere2.SetPosition({0, 0, 5});
+    sphere2.SetPosition({0, -5, -12});
     sphere2.Rotate({180, 0, 0});
     sphere2.SetScale(3);
     m_objects.push_back(sphere2);
 
     VObject sphere3("sphere2");
-    sphere3.m_mesh.LoadMesh("shaders/models/sphere.obj", true);
-    sphere3.SetColor(0.9, 0.2, 0.9);
-    sphere3.SetMaterialType(2);
-    sphere3.SetReflectivity(0.1);
+    sphere3.m_mesh.LoadMesh("shaders/models/monkey.obj", true);
+    sphere3.SetColor(0.9, 0.1, 0.9);
+    sphere3.SetMaterialType(1);
 
-    sphere3.SetPosition({ -3, -4, 6 });
-    sphere3.Rotate({ 180, 0, 0 });
+    sphere3.SetPosition({ -3, -4, 4 });
+    sphere3.Rotate({ 180, 180, 0 });
     sphere3.SetScale(1.5);
     m_objects.push_back(sphere3);
 
@@ -80,6 +77,8 @@ void Game::SetupGame()
     m_objects.push_back(plane);
 
     GameInstance->setupRayTracingSupport(m_objects, trianglesNumber);
+    //SetupIMGUI();
+    GameInstance->buildCommandbuffers();
     GameLoop();
 }
 void Game::GameLoop()
@@ -116,7 +115,6 @@ void Game::GameLoop()
         }
         //FindObject("sphere2")->SetPosition(glm::vec3( -3, -4, 1 ) + glm::vec3(cos(sinus * 0.5) * 2, 0, sin(sinus * 0.5) * 2));
         GameInstance->UpdateObjects(m_objects);
-        GameInstance->buildCommandbuffers();
         GameInstance->draw();
 
         if (GameInstance->camera.updated)
@@ -176,30 +174,79 @@ void Game::InputManager()
 void Game::CursorCallBack(GLFWwindow* window, double xpos, double ypos)
 {
 }
-void Game::DenoiseImage(const VkImage& imgIn, VkImage& imgOut)
+
+void Game::SetupIMGUI()
 {
-    VkDeviceSize bufferSize = 1280 * 720 * 4 * sizeof(float);
-}
-void Game::InitOptix()
-{
-    cudaFree(nullptr);
-    CUcontext cuCtx;
-    CUresult  cuRes = cuCtxGetCurrent(&cuCtx);
-    if(cuRes != CUDA_SUCCESS)
-    {
-    std::cerr << "Error querying current context: error code " << cuRes << "\n";
+    // Setup Dear ImGui context
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+
+    // Setup Dear ImGui style
+    ImGui::StyleColorsDark();
+    //ImGui::StyleColorsClassic();
+        //Setup IMGUI renderpass
+    ImGui_ImplGlfw_InitForVulkan(GameInstance->window, true);
+    VkAttachmentDescription attachment = {};
+    attachment.format = GameInstance->swapChain.colorFormat;
+    attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    attachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+    attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    attachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+    VkAttachmentReference color_attachment = {};
+    color_attachment.attachment = 0;
+    color_attachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpass = {};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &color_attachment;
+
+    VkSubpassDependency dependency = {};
+    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+    dependency.dstSubpass = 0;
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dependency.srcAccessMask = 0;  // or VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+    VkRenderPassCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    info.attachmentCount = 1;
+    info.pAttachments = &attachment;
+    info.subpassCount = 1;
+    info.pSubpasses = &subpass;
+    info.dependencyCount = 1;
+    info.pDependencies = &dependency;
+    if (vkCreateRenderPass(GameInstance->device.logicalDevice, &info, nullptr, &GameInstance->imGuiRenderPass) != VK_SUCCESS) {
+        throw std::runtime_error("Could not create Dear ImGui's render pass");
     }
-    OPTIX_CHECK(optixInit());
-    OPTIX_CHECK(optixDeviceContextCreate(cuCtx, nullptr, &m_optixDevice));
-    OPTIX_CHECK(optixDeviceContextSetLogCallback(m_optixDevice, context_log_cb, nullptr, 4));
 
-    OptixPixelFormat pixelFormat = OPTIX_PIXEL_FORMAT_FLOAT4;
-    size_t           sizeofPixel = sizeof(float4);
+    // Setup Platform/Renderer bindings
+    ImGui_ImplVulkan_InitInfo init_info = {};
+    init_info.Instance = GameInstance->instance;
+    init_info.PhysicalDevice = GameInstance->device.physicalDevice;
+    init_info.Device = GameInstance->device.logicalDevice;
+    init_info.QueueFamily = GameInstance->queueFamily.graphicsFamily.value();
+    init_info.Queue = GameInstance->graphicsQueue;
+    init_info.PipelineCache = GameInstance->pipelineCache;
+    init_info.DescriptorPool = GameInstance->descriptorPool;
+    init_info.Allocator = nullptr;
+    init_info.MinImageCount = GameInstance->minImageCount + 1;
+    init_info.ImageCount = GameInstance->swapChain.imageCount;
+    init_info.CheckVkResultFn = GameInstance->CHECK_ERROR;
+    ImGui_ImplVulkan_Init(&init_info, GameInstance->imGuiRenderPass);
 
+    nvvkpp::SingleCommandBuffer sc(GameInstance->dev, 0);
+    vk::CommandBuffer cmdBuffer = sc.createCommandBuffer();
 
-    m_dOptions.inputKind   = OPTIX_DENOISER_INPUT_RGB;
-    m_dOptions.pixelFormat = pixelFormat;
-    OPTIX_CHECK(optixDenoiserCreate(m_optixDevice, &m_dOptions, &m_denoiser));
-    OPTIX_CHECK(optixDenoiserSetModel(m_denoiser, OPTIX_DENOISER_MODEL_KIND_HDR, nullptr, 0));
+    ImGui_ImplVulkan_CreateFontsTexture(cmdBuffer);
+    sc.flushCommandBuffer(cmdBuffer);
 }
 

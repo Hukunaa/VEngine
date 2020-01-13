@@ -1,6 +1,7 @@
 #include <VContext.h>
 #include <array>
-#include <set>
+#include <set> 
+#include <optix_function_table_definition.h>
 
 #ifdef NDEBUG
 const bool enableValidationLayers = false;
@@ -8,8 +9,8 @@ const bool enableValidationLayers = false;
 const bool enableValidationLayers = true;
 #endif
 
-#define WIDTH 1280
-#define HEIGHT 720
+#define WIDTH 1920
+#define HEIGHT 1080
 
 #define INDEX_RAYGEN 0
 #define INDEX_MISS 1
@@ -69,7 +70,7 @@ bool VContext::IsDeviceSuitable(VkPhysicalDevice p_device)
 {
     vkGetPhysicalDeviceMemoryProperties(p_device, &device.memoryProperties);
 
-    const QueueFamilyIndices indices = FindQueueFamilies(p_device);
+    queueFamily = FindQueueFamilies(p_device);
 
     const bool extensionsSupported = checkDeviceExtensionSupport(p_device);
 
@@ -83,7 +84,7 @@ bool VContext::IsDeviceSuitable(VkPhysicalDevice p_device)
     {
         std::cout << "Extension isn't supported by the GPU!\n";
     }
-    return indices.isComplete() && extensionsSupported && swapChainAdequate;
+    return queueFamily.isComplete() && extensionsSupported && swapChainAdequate;
 }
 
 bool VContext::checkDeviceExtensionSupport(VkPhysicalDevice device) const
@@ -295,7 +296,7 @@ void VContext::setupSwapChain(uint32_t width, uint32_t height, bool vsync)
     // Get physical device surface properties and formats
     VkSurfaceCapabilitiesKHR surfCaps;
     CHECK_ERROR(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device.physicalDevice, device.surface, &surfCaps));
-
+    minImageCount = surfCaps.minImageCount;
     // Get available present modes
     uint32_t presentModeCount;
     CHECK_ERROR(vkGetPhysicalDeviceSurfacePresentModesKHR(device.physicalDevice, device.surface, &presentModeCount, nullptr));
@@ -537,6 +538,26 @@ bool VContext::CheckValidationLayerSupport() const
 }
 void VContext::CleanUp()
 {
+    m_pixelBufferIn.destroy(m_alloc);   // Closing Handle
+    m_pixelBufferOut.destroy(m_alloc);  // Closing Handle
+
+    if (m_dState != 0)
+    {
+        CUDA_CHECK(cudaFree((void*)m_dState));
+    }
+    if (m_dScratch != 0)
+    {
+        CUDA_CHECK(cudaFree((void*)m_dScratch));
+    }
+    if (m_dIntensity != 0)
+    {
+        CUDA_CHECK(cudaFree((void*)m_dIntensity));
+    }
+    if (m_dMinRGB != 0)
+    {
+        CUDA_CHECK(cudaFree((void*)m_dMinRGB));
+    }
+
     if (enableValidationLayers)
         DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
 
@@ -628,7 +649,7 @@ void VContext::UpdateObjects(std::vector<VObject>& objects)
     VkAccelerationStructureInfoNV buildInfo{};
     buildInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
     buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_NV;
-    buildInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_NV;
+    buildInfo.flags = /*VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_NV |*/ VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_NV;
     buildInfo.pGeometries = nullptr;
     buildInfo.geometryCount = 0;
     buildInfo.instanceCount = instances.size();
@@ -659,21 +680,129 @@ void VContext::UpdateObjects(std::vector<VObject>& objects)
     scratchBuffer.destroy();
     instanceBuffer.destroy();
 }
-void VContext::ConvertVulkan2Optix(const VkImage& vkIMG, OptixImage2D& opIMG, VkCommandBuffer& cmd_buffer)
+void VContext::InitOptix()
 {
-    vk::DeviceSize bufferSize = WIDTH * HEIGHT * 4 * sizeof(float);
+    cudaFree(nullptr);
+    m_alloc.init(device.logicalDevice, device.physicalDevice);
+    CUcontext cuCtx;
+    CUresult  cuRes = cuCtxGetCurrent(&cuCtx);
+    if (cuRes != CUDA_SUCCESS)
+    {
+        std::cerr << "Error querying current context: error code " << cuRes << "\n";
+    }
+    OPTIX_CHECK(optixInit());
+    OPTIX_CHECK(optixDeviceContextCreate(cuCtx, nullptr, &m_optixDevice));
+    OPTIX_CHECK(optixDeviceContextSetLogCallback(m_optixDevice, context_log_cb, nullptr, 4));
 
-    //vk::BufferUsageFlags usage{ vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst };
+    OptixPixelFormat pixelFormat = OPTIX_PIXEL_FORMAT_FLOAT3;
+    size_t           sizeofPixel = sizeof(float3);
 
-    vk::Image img = vkIMG;
-    const vk::CommandBuffer& cmdBuffer = cmd_buffer;
+    CUDA_CHECK(cudaStreamCreate(&cudaStream));
+
+    m_dOptions.inputKind = OPTIX_DENOISER_INPUT_RGB;
+    m_dOptions.pixelFormat = pixelFormat;
+    OPTIX_CHECK(optixDenoiserCreate(m_optixDevice, &m_dOptions, &m_denoiser));
+    OPTIX_CHECK(optixDenoiserSetModel(m_denoiser, OPTIX_DENOISER_MODEL_KIND_HDR, nullptr, 0));
+
+    AllocateBuffers();
+
+}
+void VContext::AllocateBuffers()
+{
+    /*m_pixelBufferIn.destroy(m_alloc);   // Closing Handle
+    m_pixelBufferOut.destroy(m_alloc);  // Closing Handle
+
+    if (m_dState != 0)
+    {
+        CUDA_CHECK(cudaFree((void*)m_dState));
+    }
+    if (m_dScratch != 0)
+    {
+        CUDA_CHECK(cudaFree((void*)m_dScratch));
+    }
+    if (m_dIntensity != 0)
+    {
+        CUDA_CHECK(cudaFree((void*)m_dIntensity));
+    }
+    if (m_dMinRGB != 0)
+    {
+        CUDA_CHECK(cudaFree((void*)m_dMinRGB));
+    }
+
+    vk::DeviceSize bufferSize = WIDTH * HEIGHT * 3 * sizeof(float);
+
+    // Using direct method
+    vk::BufferUsageFlags usage{ vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst };
+
+    m_pixelBufferIn.bufVk = m_alloc.createBuffer({ {}, bufferSize, usage });
+    m_pixelBufferOut.bufVk = m_alloc.createBuffer({ {}, bufferSize, usage | vk::BufferUsageFlagBits::eTransferSrc });
+
+    exportToCudaPointer(m_pixelBufferIn);
+    exportToCudaPointer(m_pixelBufferOut);
+
+    // Computing the amount of memory needed to do the denoiser
+    OPTIX_CHECK(optixDenoiserComputeMemoryResources(m_denoiser, WIDTH, HEIGHT, &m_dSizes));
+
+    CUDA_CHECK(cudaMalloc((void**)&m_dState, m_dSizes.stateSizeInBytes));
+    CUDA_CHECK(cudaMalloc((void**)&m_dScratch, m_dSizes.recommendedScratchSizeInBytes));
+    CUDA_CHECK(cudaMalloc((void**)&m_dIntensity, sizeof(float)));
+    CUDA_CHECK(cudaMalloc((void**)&m_dMinRGB, 4 * sizeof(float)));
+
+    OPTIX_CHECK(optixDenoiserSetup(m_denoiser, cudaStream, WIDTH, HEIGHT, m_dState,
+        m_dSizes.stateSizeInBytes, m_dScratch, m_dSizes.recommendedScratchSizeInBytes));*/
+    
+}
+void VContext::ConvertVulkan2Optix(VkImage& vkIMG, vk::Buffer& pixelBuffer)
+{
+    /*nvvkpp::SingleCommandBuffer sc(dev, 0);
+    vk::CommandBuffer cmdBuffer = sc.createCommandBuffer();
+
+    vk::DeviceSize bufferSize = WIDTH * HEIGHT * 3 * sizeof(float);
+
     vk::ImageSubresourceRange subresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
+    //nvvkpp::image::setImageLayout(cmdBuffer, img, vk::ImageLayout::eGeneral, vk::ImageLayout::eTransferSrcOptimal, subresourceRange);
+    
+    setImageLayout(cmdBuffer,
+        vkIMG,
+        VK_IMAGE_LAYOUT_GENERAL,
+        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        subresourceRange,
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
 
     vk::BufferImageCopy copyRegion;
     copyRegion.setImageSubresource({ vk::ImageAspectFlagBits::eColor, 0, 0, 1 });
     copyRegion.setImageExtent(vk::Extent3D(WIDTH, HEIGHT, 1));
-    cmdBuffer.copyImageToBuffer(img, vk::ImageLayout::eTransferSrcOptimal, pixelBufferOut, { copyRegion });
     
+    cmdBuffer.copyImageToBuffer(vkIMG, vk::ImageLayout::eTransferSrcOptimal, pixelBuffer, { copyRegion });
+    //nvvkpp::image::setImageLayout(cmdBuffer, img, vk::ImageLayout::eTransferSrcOptimal, vk::ImageLayout::eGeneral, subresourceRange);
+    setImageLayout(cmdBuffer,
+        vkIMG,
+        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        VK_IMAGE_LAYOUT_GENERAL,
+        subresourceRange,
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+
+    sc.flushCommandBuffer(cmdBuffer);*/
+    /*setImageLayout(cmdBuffer, 
+                   img, 
+                   VK_IMAGE_LAYOUT_GENERAL, 
+                   VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                   subresourceRange,
+                   VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                   VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);*/
+
+    
+    /*setImageLayout(cmdBuffer,
+        img,
+        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        VK_IMAGE_LAYOUT_GENERAL,
+        subresourceRange,
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);*/
+
+    //nvvkpp::image::setImageLayout(cmdBuffer, img, vk::ImageLayout::eTransferSrcOptimal, vk::ImageLayout::eGeneral, subresourceRange);
     // Put back the image as it was'
     /*nvvkpp::image::setImageLayout(cmdBuffer, img, vk::ImageLayout::eTransferSrcOptimal,
                                vk::ImageLayout::eGeneral, subresourceRange);*/
@@ -681,7 +810,7 @@ void VContext::ConvertVulkan2Optix(const VkImage& vkIMG, OptixImage2D& opIMG, Vk
     //--------------------------------------------------------------------------------------------------
     // Get the Vulkan buffer and create the Cuda equivalent using the memory allocated in Vulkan
     //
-    cudaBuffer.bufVk.allocation = memoryPixelBuffer;
+    /*cudaBuffer.bufVk.allocation = memoryPixelBuffer;
     cudaBuffer.bufVk.buffer = pixelBufferOut;
     auto req = dev.getBufferMemoryRequirements(cudaBuffer.bufVk.buffer);
 
@@ -695,6 +824,7 @@ void VContext::ConvertVulkan2Optix(const VkImage& vkIMG, OptixImage2D& opIMG, Vk
     cudaExternalMemory_t cudaExtMemVertexBuffer{};
     cudaError_t          result;
     result = cudaImportExternalMemory(&cudaExtMemVertexBuffer, &cudaExtMemHandleDesc);
+    std::cout << result << '\n';
 
     cudaExternalMemoryBufferDesc cudaExtBufferDesc{};
     cudaExtBufferDesc.offset = 0;
@@ -702,16 +832,98 @@ void VContext::ConvertVulkan2Optix(const VkImage& vkIMG, OptixImage2D& opIMG, Vk
     cudaExtBufferDesc.flags = 0;
 
     cudaExternalMemoryGetMappedBuffer(&cudaBuffer.cudaPtr, cudaExtMemVertexBuffer, &cudaExtBufferDesc);
+
+    OptixImage2D inputImage{ (CUdeviceptr)cudaBuffer.cudaPtr, WIDTH, HEIGHT, 0, 0, OPTIX_PIXEL_FORMAT_FLOAT4 };*/
+    
+
 }
+
+void VContext::ConvertOptix2Vulkan(VkImage& vkIMG, vk::Buffer& pixelBuffer)
+{
+    nvvkpp::SingleCommandBuffer sc(dev, 0);
+    vk::CommandBuffer cmdBuffer = sc.createCommandBuffer();
+
+    vk::DeviceSize bufferSize = WIDTH * HEIGHT * 4 * sizeof(float);
+    //vk::Image img = vkIMG;
+
+    vk::ImageSubresourceRange subresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
+    //nvvkpp::image::setImageLayout(cmdBuffer, img, vk::ImageLayout::eGeneral, vk::ImageLayout::eTransferSrcOptimal, subresourceRange);
+
+    /*setImageLayout(cmdBuffer,
+        img,
+        VK_IMAGE_LAYOUT_GENERAL,
+        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        subresourceRange,
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);*/
+
+    vk::BufferImageCopy copyRegion;
+    copyRegion.setImageSubresource({ vk::ImageAspectFlagBits::eColor, 0, 0, 1 });
+    copyRegion.setImageOffset({ 0, 0, 0 });
+    copyRegion.setImageExtent(vk::Extent3D(WIDTH, HEIGHT, 1));
+
+    cmdBuffer.copyBufferToImage(pixelBuffer, vkIMG, vk::ImageLayout::eTransferSrcOptimal,{ copyRegion });
+    //nvvkpp::image::setImageLayout(cmdBuffer, img, vk::ImageLayout::eTransferSrcOptimal, vk::ImageLayout::eGeneral, subresourceRange);
+    setImageLayout(cmdBuffer,
+        vkIMG,
+        VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        VK_IMAGE_LAYOUT_GENERAL,
+        subresourceRange,
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+        VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+
+    sc.flushCommandBuffer(cmdBuffer);
+}
+
+void VContext::DenoiseImage()
+{
+    //AllocateBuffers();
+    //try
+    //{
+    std::cout << "SIZE BEFORE: " << sizeof(storageImage.image) << "\n";
+    ConvertVulkan2Optix(storageImage.image, m_pixelBufferIn.bufVk.buffer);
+
+    OptixPixelFormat pixelFormat = OPTIX_PIXEL_FORMAT_FLOAT3;
+    auto             sizeofPixel = static_cast<uint32_t>(sizeof(float3));
+
+
+    OptixImage2D inputLayer{ (CUdeviceptr)m_pixelBufferIn.cudaPtr, WIDTH, HEIGHT, 0, 0, pixelFormat };
+    OptixImage2D outputLayer = { (CUdeviceptr)m_pixelBufferOut.cudaPtr, WIDTH, HEIGHT, 0, 0, pixelFormat };
+
+    OPTIX_CHECK(optixDenoiserComputeIntensity(m_denoiser, cudaStream, &inputLayer, m_dIntensity, m_dScratch,
+        m_dSizes.recommendedScratchSizeInBytes));
+
+    int nbChannels{ 3 };
+    OptixDenoiserParams params{};
+    params.denoiseAlpha = 1;// (nbChannels == 4 ? 1 : 0);
+    params.hdrIntensity = m_dIntensity;
+    params.blendFactor = 0;
+    //params.hdrMinRGB = d_minRGB;
+        
+    OPTIX_CHECK(optixDenoiserInvoke(m_denoiser, cudaStream, &params, m_dState, m_dSizes.stateSizeInBytes, &inputLayer, 1, 0,
+        0, &outputLayer, m_dScratch, m_dSizes.recommendedScratchSizeInBytes));
+
+    //CUDA_CHECK(cudaDeviceSynchronize());
+    CUDA_CHECK(cudaStreamSynchronize(cudaStream));  // Making sure the denoiser is done
+    ConvertOptix2Vulkan(storageImage.image, m_pixelBufferOut.bufVk.buffer);
+    std::cout << "SIZE AFTER: " << sizeof(storageImage.image) << "\n\n\n";
+    //bufferToImage(m_pixelBufferOut.bufVk.buffer, imgOut);
+    //}
+    /*catch (const std::exception & e)
+    {
+        std::cout << e.what() << std::endl;
+    }*/
+}
+
 HANDLE VContext::getVulkanMemoryHandle(VkDevice device, VkDeviceMemory memory)
 {
     // Get handle to memory of the VkImage
-    VkMemoryGetFdInfoKHR fdInfo = { };
+    VkMemoryGetWin32HandleInfoKHR fdInfo = { };
     fdInfo.sType = VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR;
     fdInfo.memory = memory;
     fdInfo.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR;
 
-    auto func = (PFN_vkGetMemoryFdKHR)vkGetDeviceProcAddr(device,
+    auto func = (PFN_vkGetMemoryWin32HandleKHR)vkGetDeviceProcAddr(device,
         "vkGetMemoryWin32HandleKHR");
 
     if (!func) {
@@ -719,13 +931,53 @@ HANDLE VContext::getVulkanMemoryHandle(VkDevice device, VkDeviceMemory memory)
         return nullptr;
     }
 
-    VkResult r = func(device, &fdInfo, fd);
+    VkResult r = func(device, &fdInfo, &fd);
     if (r != VK_SUCCESS) {
         printf("Failed executing vkGetMemoryWin32HandleKHR [%d]\n", r);
         return nullptr;
     }
-    HANDLE returnHandle = reinterpret_cast<HANDLE>(*fd);
+    HANDLE returnHandle = fd;
     return returnHandle;
+}
+void VContext::exportToCudaPointer(BufferCuda& buf)
+{
+    buf.handle = getVulkanMemoryHandle( dev, buf.bufVk.allocation);
+    auto req = dev.getBufferMemoryRequirements(buf.bufVk.buffer);
+
+    cudaExternalMemoryHandleDesc cudaExtMemHandleDesc{};
+    cudaExtMemHandleDesc.type = cudaExternalMemoryHandleTypeOpaqueWin32;
+    cudaExtMemHandleDesc.handle.win32.handle = buf.handle;
+    cudaExtMemHandleDesc.size = req.size;
+
+    cudaExternalMemory_t cudaExtMemVertexBuffer{};
+    CUDA_CHECK(cudaImportExternalMemory(&cudaExtMemVertexBuffer, &cudaExtMemHandleDesc));
+
+    cudaExternalMemoryBufferDesc cudaExtBufferDesc{};
+    cudaExtBufferDesc.offset = 0;
+    cudaExtBufferDesc.size = req.size;
+    cudaExtBufferDesc.flags = 0;
+    CUDA_CHECK(cudaExternalMemoryGetMappedBuffer(&buf.cudaPtr, cudaExtMemVertexBuffer, &cudaExtBufferDesc));
+}
+void VContext::CreateImageBuffer(vk::Buffer& buf, vk::MemoryAllocateInfo& bufAlloc, vk::MemoryRequirements& bufReqs, vk::DeviceMemory& bufMemory, vk::BufferUsageFlags usage)
+{
+    // Copy the image to the buffer
+    vk::BufferCreateInfo createInfo;
+
+    createInfo.size = WIDTH * HEIGHT * sizeof(float);
+    createInfo.usage = usage;
+    buf = dev.createBuffer(createInfo);
+    bufReqs = dev.getBufferMemoryRequirements(buf);
+    bufAlloc.allocationSize = bufReqs.size;
+    bufAlloc.memoryTypeIndex = getMemoryType(bufReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    VkExportMemoryAllocateInfoKHR exportInfo = {};
+    exportInfo.sType = VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO_KHR;
+    exportInfo.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR;
+    bufAlloc.pNext = &exportInfo;
+
+
+    bufMemory = dev.allocateMemory(bufAlloc);
+    dev.bindBufferMemory(buf, bufMemory, 0);
 }
 #pragma endregion
 #pragma region Extensions
@@ -889,7 +1141,6 @@ VkShaderModule VContext::createShaderModule(const std::vector<char>& code) const
 void VContext::initSwapChain()
 {
     dev = device.logicalDevice;
-    m_alloc.init(device.logicalDevice, device.physicalDevice);
 
     // Get available queue family properties
     uint32_t queueCount;
@@ -1065,7 +1316,7 @@ void VContext::CreateTopLevelAccelerationStructure(AccelerationStructure& accele
     VkAccelerationStructureInfoNV accelerationStructureInfo{};
     accelerationStructureInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
     accelerationStructureInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_NV;
-    accelerationStructureInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_NV;
+    accelerationStructureInfo.flags = /*VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_NV | */VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_NV;
     accelerationStructureInfo.instanceCount = instanceCount;
     accelerationStructureInfo.geometryCount = 0;
 
@@ -1384,7 +1635,7 @@ void VContext::createScene(std::vector<VObject>& objects)
     VkAccelerationStructureInfoNV buildInfo{};
     buildInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_INFO_NV;
     buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_NV;
-    buildInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_NV;
+    buildInfo.flags = /*VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_BUILD_BIT_NV | */VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_NV;
     buildInfo.pGeometries = nullptr;
     buildInfo.geometryCount = 0;
     buildInfo.instanceCount = instances.size();
@@ -2043,26 +2294,6 @@ void VContext::createDescriptorSets()
 
 void VContext::createUniformBuffer()
 {
-    // Copy the image to the buffer
-    vk::BufferCreateInfo createInfo;
-    vk::BufferUsageFlags usage{ vk::BufferUsageFlagBits::eUniformBuffer | vk::BufferUsageFlagBits::eTransferDst };
-
-    createInfo.size = WIDTH * HEIGHT * sizeof(float);
-    createInfo.usage = usage;
-    pixelBufferOut = dev.createBuffer(createInfo);
-    memReqsPixelBuffer = dev.getBufferMemoryRequirements(pixelBufferOut);
-    memAllocPixelBuffer.allocationSize = memReqsPixelBuffer.size;
-    memAllocPixelBuffer.memoryTypeIndex = getMemoryType(memReqsPixelBuffer.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-    VkExportMemoryAllocateInfoKHR exportInfo = {};
-    exportInfo.sType = VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO_KHR;
-    exportInfo.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR;
-    memAllocPixelBuffer.pNext = &exportInfo;
-
-
-    memoryPixelBuffer = dev.allocateMemory(memAllocPixelBuffer);
-    dev.bindBufferMemory(pixelBufferOut, memoryPixelBuffer, 0);
-
     CHECK_ERROR(createBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
         &ubo,
@@ -2115,6 +2346,8 @@ void VContext::buildCommandbuffers()
             nullptr, 0, 0,
             WIDTH, HEIGHT, 1);
 
+        //DenoiseImage();
+
         /*
             Copy raytracing output to swap chain image
         */
@@ -2138,8 +2371,8 @@ void VContext::buildCommandbuffers()
             subresource_range,
             VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
             VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
-        OptixImage2D imgOut;
-        ConvertVulkan2Optix(storageImage.image, imgOut, commandBuffers[i]);
+        //OptixImage2D imgOut;
+        //ConvertVulkan2Optix(storageImage.image, imgOut, commandBuffers[i]);
 
         VkImageCopy copyRegion{};
         copyRegion.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
